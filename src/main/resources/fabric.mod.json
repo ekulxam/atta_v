@@ -1,0 +1,41 @@
+{
+	"schemaVersion": 1,
+	"id": "atta_v",
+	"version": "${version}",
+	"name": "All-Terrain Tripodal Attackers",
+	"description": "Armistice 2.0 (not really)",
+	"authors": [
+		"Survivalblock"
+	],
+	"contact": {
+		"homepage": "https://modrinth.com/mod/atta_v",
+		"sources": "https://github.com/ekulxam/atta_v",
+		"issues": "https://github.com/ekulxam/atta_v/issues"
+	},
+	"license": "ARR",
+	"icon": "assets/atta_v/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"survivalblock.atmosphere.atta_v.common.AttaV"
+		],
+		"client": [
+			"survivalblock.atmosphere.atta_v.client.AttaVClient"
+		],
+		"fabric-datagen": [
+			"survivalblock.atmosphere.atta_v.common.datagen.AttaVDataGenerator"
+		]
+	},
+	"mixins": [
+		"atta_v.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.16.10",
+		"minecraft": "~1.21.1",
+		"java": ">=21",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	}
+}

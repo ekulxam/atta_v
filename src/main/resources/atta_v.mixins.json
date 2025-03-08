@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "package": "survivalblock.atmosphere.atta_v.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "LivingEntityMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "client": [
+    "client.ClientPlayerEntityMixin",
+    "client.EntityRenderDispatcherMixin"
+  ]
+}
