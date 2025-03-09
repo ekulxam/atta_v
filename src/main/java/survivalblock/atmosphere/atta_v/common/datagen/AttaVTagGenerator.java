@@ -6,7 +6,9 @@ import net.minecraft.entity.damage.DamageType;
 import net.minecraft.entity.damage.DamageTypes;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.RegistryWrapper;
+import net.minecraft.registry.tag.DamageTypeTags;
 import net.minecraft.registry.tag.EntityTypeTags;
+import survivalblock.atmosphere.atta_v.common.init.AttaVDamageTypes;
 import survivalblock.atmosphere.atta_v.common.init.AttaVEntityTypes;
 import survivalblock.atmosphere.atta_v.common.init.AttaVTags;
 
@@ -23,6 +25,10 @@ public class AttaVTagGenerator {
         @Override
         protected void configure(RegistryWrapper.WrapperLookup wrapperLookup) {
             getOrCreateTagBuilder(AttaVTags.WALL).add(DamageTypes.IN_WALL, DamageTypes.CRAMMING);
+
+            getOrCreateTagBuilder(DamageTypeTags.BYPASSES_COOLDOWN).add(AttaVDamageTypes.WANDERER_STOMP);
+            getOrCreateTagBuilder(DamageTypeTags.BYPASSES_ARMOR).add(AttaVDamageTypes.WANDERER_STOMP);
+            getOrCreateTagBuilder(DamageTypeTags.NO_KNOCKBACK).add(AttaVDamageTypes.WANDERER_STOMP);
         }
     }
 

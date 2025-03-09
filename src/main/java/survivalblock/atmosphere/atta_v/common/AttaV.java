@@ -9,6 +9,7 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import survivalblock.atmosphere.atta_v.common.datagen.AttaVSoundEvents;
 import survivalblock.atmosphere.atta_v.common.entity.wanderer.WalkingCubeEntity;
 import survivalblock.atmosphere.atta_v.common.init.AttaVEntityTypes;
 
@@ -19,6 +20,7 @@ public class AttaV implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
+		AttaVSoundEvents.init();
 		AttaVEntityTypes.init();
 
 		// to whoever is reading this: I'm very sorry

@@ -5,10 +5,18 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.FenceGateBlock;
 import net.minecraft.entity.*;
+import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtOps;
+import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket;
+import net.minecraft.particle.BlockStateParticleEffect;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.registry.tag.BlockTags;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.crash.CrashException;
 import net.minecraft.util.crash.CrashReport;
@@ -32,6 +40,8 @@ import net.minecraft.world.event.GameEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import survivalblock.atmosphere.atta_v.common.AttaV;
+import survivalblock.atmosphere.atta_v.common.datagen.AttaVSoundEvents;
+import survivalblock.atmosphere.atta_v.common.init.AttaVDamageTypes;
 
 import java.util.Arrays;
 import java.util.List;
@@ -94,6 +104,7 @@ public class TripodLeg {
     }
 
     public void tick() {
+        this.resetPosition();
         if (this.isLogicalSideForUpdatingMovement()) {
             this.applyGravity();
             this.move(MovementType.SELF, this.getVelocity());
@@ -369,19 +380,49 @@ public class TripodLeg {
     protected void fall(double heightDifference, boolean onGround, BlockState state, BlockPos landedPosition) {
         if (onGround) {
             if (this.fallDistance > 0.0F) {
-                state.getBlock().onLandedUpon(this.getWorld(), state, landedPosition, this.controller, this.fallDistance);
-                this.getWorld()
-                        .emitGameEvent(
+                World world = this.getWorld();
+                state.getBlock().onLandedUpon(world, state, landedPosition, this.controller, this.fallDistance);
+                world.emitGameEvent(
                                 GameEvent.HIT_GROUND,
                                 this.pos,
                                 GameEvent.Emitter.of(this.controller, this.supportingBlockPos.map(blockPos -> this.getWorld().getBlockState(blockPos)).orElse(state))
                         );
-                this.getWorld().playSound(this.controller, this.blockPos, SoundEvents.ITEM_ARMOR_EQUIP_NETHERITE.value(), this.controller.getSoundCategory(), 1.0F, 1.0F);
+                if (world instanceof ServerWorld serverWorld) handleFall(serverWorld);
             }
             this.onLanding();
         } else if (heightDifference < 0.0) {
             this.fallDistance -= (float)heightDifference;
         }
+    }
+
+    private void handleFall(ServerWorld world) {
+        world.playSound(this.controller, this.blockPos,
+                AttaVSoundEvents.WANDERER_LEG_LAND, this.controller.getSoundCategory(),
+                1.2F, 1.0F);
+        final double expand = 4;
+        // mace-like
+        DamageSource source = new DamageSource(world.getRegistryManager().getWrapperOrThrow(RegistryKeys.DAMAGE_TYPE).getOrThrow(AttaVDamageTypes.WANDERER_STOMP), this.controller);
+        world.getEntitiesByClass(LivingEntity.class, this.getBoundingBox().expand(expand), living ->
+                living.isAlive() && !living.isInvulnerable() && !living.isSpectator() && !this.controller.equals(living.getRootVehicle()) && !living.isTeammate(this.controller)).forEach(living -> {
+            living.damage(source, 3f);
+            Vec3d vec3d = living.getPos().subtract(this.pos);
+            double knockback = Math.max(0, (expand + 0.7 - vec3d.length()))
+                    * 1.4F
+                    * (1.0 - living.getAttributeValue(EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE));
+            if (knockback > 0.0) {
+                Vec3d vec3d2 = vec3d.normalize().multiply(knockback);
+                living.addVelocity(vec3d2.x, 0.7F, vec3d2.z);
+                if (living instanceof ServerPlayerEntity serverPlayerEntity) {
+                    serverPlayerEntity.networkHandler.sendPacket(new EntityVelocityUpdateS2CPacket(serverPlayerEntity));
+                }
+            }
+        });
+        BlockPos blockPos = this.getLandingPos();
+        BlockState blockState = world.getBlockState(blockPos);
+        Vec3d vec3d = blockPos.toCenterPos().add(0.0, 0.5, 0.0);
+        int i = (int)MathHelper.clamp(50.0F * this.fallDistance, 0.0F, 200.0F);
+        double particleDelta = expand / 2 - 1;
+        world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, blockState), vec3d.x, vec3d.y, vec3d.z, i, particleDelta, particleDelta, particleDelta, 0.15F);
     }
 
     @Deprecated
@@ -419,7 +460,9 @@ public class TripodLeg {
     public NbtCompound writeNbt(NbtCompound nbt) {
         RegistryWrapper.WrapperLookup wrapperLookup = this.controller.getRegistryManager();
         nbt.put("velocity", Vec3d.CODEC.encodeStart(wrapperLookup.getOps(NbtOps.INSTANCE), this.velocity).getOrThrow());
-        nbt.put("pos", Vec3d.CODEC.encodeStart(wrapperLookup.getOps(NbtOps.INSTANCE), this.pos).getOrThrow());
+        if (this.pos != null) {
+            nbt.put("pos", Vec3d.CODEC.encodeStart(wrapperLookup.getOps(NbtOps.INSTANCE), this.pos).getOrThrow());
+        }
         nbt.putFloat("FallDistance", this.fallDistance);
         nbt.putBoolean("OnGround", this.isOnGround());
         return nbt;

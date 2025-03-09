@@ -73,14 +73,14 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
         if (world == null) {
             return;
         }
-        List<WalkingCubeEntity.BaseEndPair> legPositions = entity.getLegPositions(tickDelta);
-        if (legPositions.isEmpty()) {
+        List<WalkingCubeEntity.LegRenderState> legRenderStates = entity.getLegsForRendering(tickDelta);
+        if (legRenderStates.isEmpty()) {
             return;
         }
         Vec3d pos = entity.getPos();
         VertexConsumer lines = LINES.apply(vertexConsumerProvider);
-        for (WalkingCubeEntity.BaseEndPair baseEndPair : legPositions) {
-            drawLine(pos, baseEndPair.base().add(0, entity.getHeight() / 2, 0), baseEndPair.end(), matrixStack, lines, -16776961);
+        for (WalkingCubeEntity.LegRenderState legRenderState : legRenderStates) {
+            drawLine(pos, legRenderState.base().add(0, entity.getHeight() / 2, 0), legRenderState.end(), matrixStack, lines, legRenderState.color());
             //EntityRenderDispatcherAccessor.atta_v$invokeDrawVector(matrixStack, vertexConsumerProvider.getBuffer(RenderLayer.getLines()), new Vector3f(0.0F, entity.getStandingEyeHeight(), 0.0F), entity.getRotationVec(tickDelta).multiply(2.0), -16776961);
         }
     }

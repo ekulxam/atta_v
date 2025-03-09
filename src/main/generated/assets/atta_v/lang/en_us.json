@@ -1,3 +1,7 @@
 {
+  "atta_v.entity.wanderer_leg_land": "Wanderer Leg Lands",
+  "death.attack.atta_v.wanderer_stomp": "%1$s was stomped to death by %2$s",
+  "death.attack.atta_v.wanderer_stomp.item": "%1$s was stomped to death by %2$s using %3$s",
+  "death.attack.atta_v.wanderer_stomp.player": "%1$s was stomped to death by %2$s",
   "entity.atta_v.wanderer": "All-Terrain Tripodal Attacker"
 }
