@@ -95,13 +95,6 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
                 .color(color)
                 .normal(entry, (float)rotationVec.x, (float)rotationVec.y, (float)rotationVec.z);
         matrixStack.pop();
-        /*
-        ClientWorld world = MinecraftClient.getInstance().world;
-        if (world != null) {
-            world.addParticle(ParticleTypes.END_ROD, start.x, start.y, start.z, 0, 0, 0);
-            world.addParticle(ParticleTypes.END_ROD, end.x, end.y, end.z, 0, 0, 0);
-        }
-         */
     }
 
     @Override

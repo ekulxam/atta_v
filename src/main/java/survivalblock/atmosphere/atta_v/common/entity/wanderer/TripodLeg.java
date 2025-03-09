@@ -42,6 +42,7 @@ import org.jetbrains.annotations.Nullable;
 import survivalblock.atmosphere.atta_v.common.AttaV;
 import survivalblock.atmosphere.atta_v.common.datagen.AttaVSoundEvents;
 import survivalblock.atmosphere.atta_v.common.init.AttaVDamageTypes;
+import survivalblock.atmosphere.atta_v.common.init.AttaVGameRules;
 
 import java.util.Arrays;
 import java.util.List;
@@ -400,23 +401,25 @@ public class TripodLeg {
                 AttaVSoundEvents.WANDERER_LEG_LAND, this.controller.getSoundCategory(),
                 1.2F, 1.0F);
         final double expand = 4;
-        // mace-like
-        DamageSource source = new DamageSource(world.getRegistryManager().getWrapperOrThrow(RegistryKeys.DAMAGE_TYPE).getOrThrow(AttaVDamageTypes.WANDERER_STOMP), this.controller);
-        world.getEntitiesByClass(LivingEntity.class, this.getBoundingBox().expand(expand), living ->
-                living.isAlive() && !living.isInvulnerable() && !living.isSpectator() && !this.controller.equals(living.getRootVehicle()) && !living.isTeammate(this.controller)).forEach(living -> {
-            living.damage(source, 3f);
-            Vec3d vec3d = living.getPos().subtract(this.pos);
-            double knockback = Math.max(0, (expand + 0.7 - vec3d.length()))
-                    * 1.4F
-                    * (1.0 - living.getAttributeValue(EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE));
-            if (knockback > 0.0) {
-                Vec3d vec3d2 = vec3d.normalize().multiply(knockback);
-                living.addVelocity(vec3d2.x, 0.7F, vec3d2.z);
-                if (living instanceof ServerPlayerEntity serverPlayerEntity) {
-                    serverPlayerEntity.networkHandler.sendPacket(new EntityVelocityUpdateS2CPacket(serverPlayerEntity));
+        if (world.getGameRules().getBoolean(AttaVGameRules.WANDERER_STOMP_DOES_DAMAGE)) {
+            // mace-like
+            DamageSource source = new DamageSource(world.getRegistryManager().getWrapperOrThrow(RegistryKeys.DAMAGE_TYPE).getOrThrow(AttaVDamageTypes.WANDERER_STOMP), this.controller);
+            world.getEntitiesByClass(LivingEntity.class, this.getBoundingBox().expand(expand), living ->
+                    living.isAlive() && !living.isInvulnerable() && !living.isSpectator() && !this.controller.equals(living.getRootVehicle()) && !living.isTeammate(this.controller)).forEach(living -> {
+                living.damage(source, 3f);
+                Vec3d vec3d = living.getPos().subtract(this.pos);
+                double knockback = Math.max(0, (expand + 0.7 - vec3d.length()))
+                        * 1.4F
+                        * (1.0 - living.getAttributeValue(EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE));
+                if (knockback > 0.0) {
+                    Vec3d vec3d2 = vec3d.normalize().multiply(knockback);
+                    living.addVelocity(vec3d2.x, 0.7F, vec3d2.z);
+                    if (living instanceof ServerPlayerEntity serverPlayerEntity) {
+                        serverPlayerEntity.networkHandler.sendPacket(new EntityVelocityUpdateS2CPacket(serverPlayerEntity));
+                    }
                 }
-            }
-        });
+            });
+        }
         BlockPos blockPos = this.getLandingPos();
         BlockState blockState = world.getBlockState(blockPos);
         Vec3d vec3d = blockPos.toCenterPos().add(0.0, 0.5, 0.0);

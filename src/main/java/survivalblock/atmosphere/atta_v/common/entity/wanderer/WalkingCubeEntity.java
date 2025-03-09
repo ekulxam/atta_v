@@ -10,6 +10,7 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.predicate.entity.EntityPredicates;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
@@ -19,6 +20,7 @@ import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import survivalblock.atmosphere.atta_v.common.TripodLegUpdatePayload;
+import survivalblock.atmosphere.atta_v.common.init.AttaVGameRules;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,7 +28,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class WalkingCubeEntity extends Entity {
 
-    public static final double SQAURED_DISTANCE_THRESHOLD = 50*50;
+    public static final double SQAURED_DISTANCE_THRESHOLD = 45*45;
 
     protected final List<@NotNull TripodLeg> legs = new ArrayList<>();
 
@@ -64,13 +66,9 @@ public class WalkingCubeEntity extends Entity {
             this.writeLegDataToNbt(nbt);
             TripodLegUpdatePayload payload = new TripodLegUpdatePayload(this.getId(), nbt);
             if (world instanceof ServerWorld serverWorld) {
-                serverWorld.getPlayers().forEach(player -> {
-                    if (player.distanceTo(this) < 128) {
-                        ServerPlayNetworking.send(player, payload);
-                    }
-                });
+                payload.sendS2C(serverWorld, this, null);
             } else {
-                ClientPlayNetworking.send(payload);
+                payload.sendC2S();
             }
         }
         super.tick();
@@ -82,10 +80,15 @@ public class WalkingCubeEntity extends Entity {
             }
         } else {
             this.setInputs();
-            PlayerEntity player = world.getClosestPlayer(this.getX(), this.getY(), this.getZ(), 64, true);
+            PlayerEntity player = null;
+            if (world.getGameRules().getBoolean(AttaVGameRules.WANDERER_SEEKS_OUT_PLAYERS)) {
+                player = world.getClosestPlayer(this.getX(), this.getY(), this.getZ(), 64,
+                        entity -> entity.isAlive() && EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR.test(entity)
+                                && this != entity.getRootVehicle() && !entity.isTeammate(this));
+            }
             if (player != null) {
                 this.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, player.getPos());
-                if (logicalSide) {
+                if (logicalSide/* && player.squaredDistanceTo(this) > 40 */) {
                     this.activateLegs();
                 }
             } else {
@@ -122,11 +125,21 @@ public class WalkingCubeEntity extends Entity {
     }
 
     public void recalibrateLegs() {
+        this.recalibrateLegs(false);
+    }
+
+    public void recalibrateLegs(boolean sync) {
         Vec3d pos = this.getPos();
         float yaw = this.getYaw();
         for (int i = 0; i < this.legs.size(); i++) {
             TripodLeg leg = this.legs.get(i);
             this.recalibrateLeg(leg, i, pos, yaw);
+        }
+        if (sync && this.getWorld() instanceof ServerWorld serverWorld) {
+            NbtCompound nbt = new NbtCompound();
+            this.writeLegDataToNbt(nbt);
+            TripodLegUpdatePayload payload = new TripodLegUpdatePayload(this.getId(), nbt);
+            payload.sendS2C(serverWorld, this, null);
         }
     }
 
@@ -136,21 +149,27 @@ public class WalkingCubeEntity extends Entity {
     }
 
     public void activateLegs() {
+        TripodLeg active = this.resetActiveLeg();
+        if (active.isOnGround()) {
+            final double sizeMultiplier = Math.max(0, Math.log10((double) this.legs.size())) + 0.6;
+            TripodLeg leg = this.getNextLeg(active);
+            this.activeLeg.set(leg);
+            final float yaw = this.getYaw();
+            Vec3d newPos = this.getPos().add(fromYaw(yaw).multiply(8));
+            newPos = newPos.add(this.getDesiredOffset(this.legs.indexOf(leg), yaw)).subtract(leg.getPos()).normalize();
+            leg.setVelocity(new Vec3d(newPos.x * sizeMultiplier, 1.5, newPos.z * sizeMultiplier).multiply(0.92d)); // slightly faster than a sprinting player when it has three legs
+        }
+    }
+
+    @NotNull
+    private TripodLeg resetActiveLeg() {
         TripodLeg active = this.activeLeg.get();
         if (active == null) {
             TripodLeg legOne = this.legs.getFirst();
             this.activeLeg.set(legOne);
             active = legOne;
         }
-        if (active.isOnGround()) {
-            final double sizeMultiplier = Math.max(0, Math.log10((double) this.legs.size())) + 0.5;
-            TripodLeg leg = this.getNextLeg(active);
-            this.activeLeg.set(leg);
-            final float yaw = this.getYaw();
-            Vec3d newPos = this.getPos().add(fromYaw(yaw).normalize().multiply(3));
-            newPos = newPos.add(this.getDesiredOffset(this.legs.indexOf(leg), yaw)).subtract(leg.getPos()).normalize();
-            leg.setVelocity(new Vec3d(newPos.x * sizeMultiplier, 1, newPos.z * sizeMultiplier).multiply(0.8d));
-        }
+        return active;
     }
 
     public Vec3d getDesiredOffset(int index, float yaw) {
@@ -183,9 +202,11 @@ public class WalkingCubeEntity extends Entity {
         if (nbt.contains("activeLeg")) {
             active = nbt.getInt("activeLeg");
         }
+        this.activeLeg.set(null);
         boolean dirty = false;
-        if (size < this.legs.size()) {
-            this.legs.clear();
+        while (size < this.legs.size()) {
+            this.legs.removeLast();
+            dirty = true;
         }
         while (size > this.legs.size()) {
             this.legs.add(new TripodLeg(this));
@@ -205,6 +226,9 @@ public class WalkingCubeEntity extends Entity {
             if (dirty) {
                 this.recalibrateLeg(leg, i, pos, yaw);
             }
+        }
+        if (this.activeLeg.get() == null && !this.legs.isEmpty()) {
+            this.resetActiveLeg();
         }
     }
 
@@ -266,7 +290,7 @@ public class WalkingCubeEntity extends Entity {
     }
 
     public double getLegGravity() {
-        return 0.05;
+        return 0.08;
     }
 
     @Override
@@ -356,6 +380,7 @@ public class WalkingCubeEntity extends Entity {
         this.legs.add(new TripodLeg(this));
         this.legs.add(new TripodLeg(this));
         this.legs.add(new TripodLeg(this));
+        this.resetActiveLeg();
     }
 
     public record LegRenderState(Vec3d base, Vec3d end, int color) {

@@ -1,5 +1,5 @@
 {
-  "atta_v.entity.wanderer_leg_land": {
+  "entity.wanderer_leg_land": {
     "sounds": [
       {
         "name": "item/armor/equip_netherite1",

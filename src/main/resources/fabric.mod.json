@@ -3,7 +3,7 @@
 	"id": "atta_v",
 	"version": "${version}",
 	"name": "All-Terrain Tripodal Attackers",
-	"description": "Armistice 2.0 (not really)",
+	"description": "Funny walking cubes - Armistice 2.0 but not really",
 	"authors": [
 		"Survivalblock"
 	],
@@ -34,8 +34,5 @@
 		"minecraft": "~1.21.1",
 		"java": ">=21",
 		"fabric-api": "*"
-	},
-	"suggests": {
-		"another-mod": "*"
 	}
 }

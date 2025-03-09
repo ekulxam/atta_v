@@ -1,7 +1,13 @@
 {
-  "atta_v.entity.wanderer_leg_land": "Wanderer Leg Lands",
+  "commands.attav.recalibratelegs.invalidentity": "Entity is null or not of type WalkingCubeEntity",
+  "commands.attav.recalibratelegs.invalidvehicle": "Vehicle is null or not of type WalkingCubeEntity",
+  "commands.attav.recalibratelegs.notplayersource": "The source of the command did not originate from a player",
+  "commands.attav.recalibratelegs.success": "Successfully recalibrated legs",
   "death.attack.atta_v.wanderer_stomp": "%1$s was stomped to death by %2$s",
   "death.attack.atta_v.wanderer_stomp.item": "%1$s was stomped to death by %2$s using %3$s",
   "death.attack.atta_v.wanderer_stomp.player": "%1$s was stomped to death by %2$s",
-  "entity.atta_v.wanderer": "All-Terrain Tripodal Attacker"
+  "entity.atta_v.wanderer": "All-Terrain Tripodal Attacker",
+  "gamerule.atta_v:wandererSeeksOutPlayers": "Atta V - Wanderer Seeks Out Players",
+  "gamerule.atta_v:wandererStompDoesDamage": "Atta V - Wanderer Stomp Does Damage",
+  "subtitles.atta_v.entity.wanderer_leg_land": "Wanderer Leg Lands"
 }
