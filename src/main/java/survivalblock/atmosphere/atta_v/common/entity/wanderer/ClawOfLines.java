@@ -1,22 +1,10 @@
 package survivalblock.atmosphere.atta_v.common.entity.wanderer;
 
-import com.google.common.collect.ImmutableList;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.random.Random;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-
-public class ClawOfLines {
-
-    public static final int SEGMENTS = 60;
-
-    private List<Vec3d> positions = new ArrayList<>();
-    private final @NotNull WalkingCubeEntity controller;
+public class ClawOfLines extends Appendage {
 
     private @Nullable Vec3d targetPosition = null;
     private @Nullable PlayerEntity target = null;
@@ -24,16 +12,7 @@ public class ClawOfLines {
     private int grabTicks = 0;
 
     public ClawOfLines(WalkingCubeEntity controller) {
-        this.controller = Objects.requireNonNull(controller);
-        this.resetPositions();
-    }
-
-    private void resetPositions() {
-        this.positions.clear();
-        Vec3d pos = this.controller.getEyePos();
-        for (int i = 0; i < SEGMENTS; i++) {
-            this.positions.add(new Vec3d(pos.x, pos.y + 0.3 * i, pos.z));
-        }
+        super(controller, 60, 0.3);
     }
 
     public void tick() {
@@ -45,10 +24,8 @@ public class ClawOfLines {
                 this.targetPosition = this.targetPosition.lerp(this.controller.targetPos, 0.05);
             }
         }
+        super.tick();
         this.target = this.controller.targetPlayer;
-        if (this.targetPosition != null) {
-            this.positions = FabrIKSolver.solve(this.positions, this.targetPosition);
-        }
         if (!this.controller.getWorld().isClient() && this.target != null) {
             Vec3d end = this.getEnd();
             double distance = end.distanceTo(target.getPos());
@@ -56,8 +33,7 @@ public class ClawOfLines {
                 this.grab = true;
                 this.grabTicks++;
                 if (this.grabTicks > 30) {
-                    Random random = this.controller.getRandom();
-                    target.setVelocity(random.nextDouble(), 2, random.nextDouble());
+                    target.setVelocity(this.random.nextDouble(), 2, this.random.nextDouble());
                     target.velocityModified = true;
                 } else {
                     target.teleport(end.x, end.y, end.z, false);
@@ -70,20 +46,21 @@ public class ClawOfLines {
         }
     }
 
-    /**
-     * Returns a read-only view of {@link ClawOfLines#positions}
-     * @return an {@link ImmutableList}
-     */
-    public List<Vec3d> getPositions() {
-        return ImmutableList.copyOf(this.positions);
-    }
-
-    // anchor?
     public Vec3d getRoot() {
         return this.positions.getFirst();
     }
 
     public Vec3d getEnd() {
         return this.positions.getLast();
+    }
+
+    @Override
+    protected Vec3d getDesiredRootPosition() {
+        return this.controller.getEyePos();
+    }
+
+    @Override
+    protected @Nullable Vec3d getDesiredEndPosition() {
+        return this.targetPosition;
     }
 }

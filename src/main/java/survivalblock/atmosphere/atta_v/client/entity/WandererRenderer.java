@@ -17,6 +17,7 @@ import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 import survivalblock.atmosphere.atta_v.client.AttaVClient;
 import survivalblock.atmosphere.atta_v.common.AttaV;
+import survivalblock.atmosphere.atta_v.common.entity.wanderer.Appendage;
 import survivalblock.atmosphere.atta_v.common.entity.wanderer.ClawOfLines;
 import survivalblock.atmosphere.atta_v.common.entity.wanderer.WalkingCubeEntity;
 
@@ -62,8 +63,8 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
         matrixStack.pop();
         // unscale MatrixStack BEFORE rendering legs, otherwise you'll be in for a world of (rendering) pain
         VertexConsumer lines = LINES.apply(vertexConsumerProvider);
-        renderLegs(entity, matrixStack, lines, tickDelta);
-        renderClaw(entity, matrixStack, lines);
+        entity.getLegPositions().forEach(container -> renderAppendage(entity, container.positions(), matrixStack, lines, container.color()));
+        renderAppendage(entity, entity.getClaw().getPositions(), matrixStack, lines);
         super.render(entity, yaw, tickDelta, matrixStack, vertexConsumerProvider, light);
     }
 
@@ -71,31 +72,17 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
         this.model.render(matrixStack, vertexConsumer, light, OverlayTexture.DEFAULT_UV, showBody ? 654311423 : -1);
     }
 
-    private static void renderLegs(WalkingCubeEntity entity, MatrixStack matrixStack, VertexConsumer lines, float tickDelta) {
-        ClientWorld world = MinecraftClient.getInstance().world;
-        if (world == null) {
-            return;
-        }
-        List<WalkingCubeEntity.LegRenderState> legRenderStates = entity.getLegsForRendering(tickDelta);
-        if (legRenderStates.isEmpty()) {
-            return;
-        }
-        Vec3d pos = entity.getPos();
-        for (WalkingCubeEntity.LegRenderState legRenderState : legRenderStates) {
-            drawLine(pos, legRenderState.base().add(0, entity.getHeight() / 2, 0), legRenderState.end(), matrixStack, lines, legRenderState.color());
-            //EntityRenderDispatcherAccessor.atta_v$invokeDrawVector(matrixStack, vertexConsumerProvider.getBuffer(RenderLayer.getLines()), new Vector3f(0.0F, entity.getStandingEyeHeight(), 0.0F), entity.getRotationVec(tickDelta).multiply(2.0), -16776961);
-        }
+    private static void renderAppendage(WalkingCubeEntity walkingCube, List<Vec3d> positions, MatrixStack matrixStack, VertexConsumer lines) {
+        renderAppendage(walkingCube, positions, matrixStack, lines, 0xFF0000FF);
     }
 
-
-    private static void renderClaw(WalkingCubeEntity walkingCube, MatrixStack matrixStack, VertexConsumer lines) {
-        List<Vec3d> positions = walkingCube.getClaw().getPositions();
+    private static void renderAppendage(WalkingCubeEntity walkingCube, List<Vec3d> positions, MatrixStack matrixStack, VertexConsumer lines, int color) {
         Vec3d previous = positions.getFirst();
         Vec3d current;
         Vec3d pos = walkingCube.getPos();
         for (int i = 1; i < positions.size(); i++) {
             current = positions.get(i);
-            drawLine(pos, current, previous, matrixStack, lines, 0xFF0000FF);
+            drawLine(pos, current, previous, matrixStack, lines, color);
             previous = current;
         }
     }

@@ -17,7 +17,6 @@ import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.crash.CrashException;
 import net.minecraft.util.crash.CrashReport;
 import net.minecraft.util.crash.CrashReportSection;
@@ -30,7 +29,6 @@ import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.random.Random;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.RaycastContext;
@@ -46,21 +44,19 @@ import survivalblock.atmosphere.atta_v.common.init.AttaVGameRules;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 
 // the amalgamation that is entities
 @SuppressWarnings("deprecation")
-public class TripodLeg {
+public class TripodLeg extends Appendage {
 
     public static final EntityDimensions DIMENSIONS = EntityDimensions.fixed(0.5f, 0.1f);
     private static final Box NULL_BOX = new Box(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
     private Box boundingBox = NULL_BOX;
-    private final @NotNull WalkingCubeEntity controller;
     private Vec3d velocity = Vec3d.ZERO;
 
     public TripodLeg(WalkingCubeEntity controller) {
-        this.controller = Objects.requireNonNull(controller);
+        super(controller, 75, 0.6);
     }
 
     private boolean onGround;
@@ -78,7 +74,6 @@ public class TripodLeg {
     public double lastRenderX;
     public double lastRenderY;
     public double lastRenderZ;
-    protected final Random random = Random.create();
     public boolean velocityDirty;
     private final double[] pistonMovementDelta = new double[]{0.0, 0.0, 0.0};
     private long pistonMovementTick;
@@ -89,6 +84,20 @@ public class TripodLeg {
     @SuppressWarnings("unused")
     public final void setPosition(Vec3d pos) {
         this.setPosition(pos.getX(), pos.getY(), pos.getZ());
+    }
+
+    @Override
+    protected void resetPositions() {
+        this.positions.clear();
+        Vec3d pos = this.getDesiredRootPosition();
+        if (pos == null) {
+            return;
+        }
+        final double xz = Math.sqrt(this.segmentLength) / 4;
+        Vec3d offset = this.controller.getDesiredOffset(this.controller.legs.indexOf(this), this.controller.getYaw()).normalize();
+        for (int i = 0; i < this.segments; i++) {
+            this.positions.add(new Vec3d(pos.x + offset.x * xz * i, pos.y + i * 0.15, pos.z + offset.z * xz * i));
+        }
     }
 
     public void setPosition(double x, double y, double z) {
@@ -104,6 +113,7 @@ public class TripodLeg {
         this.setPosition(this.pos.x, this.pos.y, this.pos.z);
     }
 
+    @Override
     public void tick() {
         this.resetPosition();
         if (this.isLogicalSideForUpdatingMovement()) {
@@ -114,6 +124,18 @@ public class TripodLeg {
         if (!this.getWorld().isSpaceEmpty(this.getBoundingBox())) {
             this.pushOutOfBlocks(this.getX(), (this.getBoundingBox().minY + this.getBoundingBox().maxY) / 2.0, this.getZ());
         }
+        this.resetPositions();
+        super.tick();
+    }
+
+    @Override
+    protected @Nullable Vec3d getDesiredRootPosition() {
+        return this.controller.getEyePos();
+    }
+
+    @Override
+    protected @Nullable Vec3d getDesiredEndPosition() {
+        return this.pos;
     }
 
     public void setOnGround(boolean onGround, Vec3d movement) {
@@ -432,6 +454,9 @@ public class TripodLeg {
         return this.getWorld().getBlockState(this.getLandingPos());
     }
 
+    /**
+     * Not to be confused with {@link Appendage#resetPositions()}
+     */
     public final void resetPosition() {
         double d = this.getX();
         double e = this.getY();

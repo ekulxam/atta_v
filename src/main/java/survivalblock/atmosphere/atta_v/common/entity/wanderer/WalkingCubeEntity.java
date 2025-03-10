@@ -273,22 +273,8 @@ public class WalkingCubeEntity extends Entity {
         return list.get(Math.floorDiv(size, 2));
     }
 
-    public List<LegRenderState> getLegsForRendering(final float tickDelta) {
-        Vec3d pos = this.getPos();
-        final float yaw = this.getYaw(tickDelta);
-        int size = this.legs.size();
-        final float turn = 360f / size;
-        TripodLeg active = this.activeLeg.get();
-        ImmutableList.Builder<LegRenderState> builder = ImmutableList.builder();
-        for (int i = 0; i < size; i++) {
-            TripodLeg leg = this.legs.get(i);
-            Vec3d legPos = leg.getLerpedPos(tickDelta);
-            if (legPos == null) {
-                continue;
-            }
-            builder.add(new LegRenderState(pos.add(fromYaw(yaw + i * turn)), legPos, leg == active ? 0xFFFF0000 : 0xFF000000));
-        }
-        return builder.build();
+    public List<Appendage.PositionColorContainer> getLegPositions() {
+        return this.legs.stream().map(leg -> new Appendage.PositionColorContainer(leg.getPositions(), leg == this.activeLeg.get() ? 0xFFFF0000 : 0xFF000000)).toList();
     }
 
     @Override
