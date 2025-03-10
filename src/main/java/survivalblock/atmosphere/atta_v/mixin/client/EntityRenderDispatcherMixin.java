@@ -5,16 +5,20 @@ import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.render.entity.EntityRenderDispatcher;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Debug;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import survivalblock.atmosphere.atta_v.client.entity.WandererRenderer;
 import survivalblock.atmosphere.atta_v.common.entity.wanderer.WalkingCubeEntity;
 
@@ -39,5 +43,15 @@ public class EntityRenderDispatcherMixin {
             }
         }
         return original;
+    }
+
+    @Inject(method = "renderHitbox", at = @At(value = "HEAD"))
+    private static void renderLegHitboxes(MatrixStack matrices, VertexConsumer vertices, Entity entity, float tickDelta, float red, float green, float blue, CallbackInfo ci) {
+        if (entity instanceof WalkingCubeEntity walkingCube) {
+            walkingCube.getLegBoundingBoxes().forEach(pair -> {
+                Box box = pair.boundingBox().offset(-entity.getX(), -entity.getY(), -entity.getZ());
+                WorldRenderer.drawBox(matrices, vertices, box, red, green, blue, 1.0F);
+            });
+        }
     }
 }

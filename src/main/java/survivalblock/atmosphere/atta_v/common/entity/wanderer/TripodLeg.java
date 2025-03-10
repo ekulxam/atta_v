@@ -408,8 +408,7 @@ public class TripodLeg {
                     living.isAlive() && !living.isInvulnerable() && !living.isSpectator() && !this.controller.equals(living.getRootVehicle()) && !living.isTeammate(this.controller)).forEach(living -> {
                 living.damage(source, 3f);
                 Vec3d vec3d = living.getPos().subtract(this.pos);
-                double knockback = Math.max(0, (expand + 0.7 - vec3d.length()))
-                        * 1.4F
+                double knockback = Math.max(0, (expand + 0.7 - vec3d.length())) * 1.4F
                         * (1.0 - living.getAttributeValue(EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE));
                 if (knockback > 0.0) {
                     Vec3d vec3d2 = vec3d.normalize().multiply(knockback);

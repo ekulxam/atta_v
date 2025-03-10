@@ -1,8 +1,6 @@
 package survivalblock.atmosphere.atta_v.common.entity.wanderer;
 
 import com.google.common.collect.ImmutableList;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.command.argument.EntityAnchorArgumentType;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
@@ -14,6 +12,7 @@ import net.minecraft.predicate.entity.EntityPredicates;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec2f;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
@@ -25,12 +24,14 @@ import survivalblock.atmosphere.atta_v.common.init.AttaVGameRules;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 
 public class WalkingCubeEntity extends Entity {
 
     public static final double SQAURED_DISTANCE_THRESHOLD = 45*45;
 
     protected final List<@NotNull TripodLeg> legs = new ArrayList<>();
+    protected final ClawOfLines claw = new ClawOfLines(this);
 
     private boolean isPosNull;
 
@@ -40,6 +41,8 @@ public class WalkingCubeEntity extends Entity {
     private boolean shouldTurnRight;
 
     protected final AtomicReference<@Nullable TripodLeg> activeLeg = new AtomicReference<>();
+    protected @Nullable Vec3d targetPos;
+    protected @Nullable PlayerEntity targetPlayer;
 
     public WalkingCubeEntity(EntityType<?> type, World world) {
         super(type, world);
@@ -73,6 +76,7 @@ public class WalkingCubeEntity extends Entity {
         }
         super.tick();
         LivingEntity controllingPassenger = this.getControllingPassenger();
+        this.targetPos = null;
         if (controllingPassenger != null) {
             this.tickRotation(getControlledRotation(controllingPassenger));
             if (logicalSide && (this.shouldAccelerateForward || this.shouldGoBackward || this.shouldTurnRight || this.shouldTurnLeft)) {
@@ -87,8 +91,10 @@ public class WalkingCubeEntity extends Entity {
                                 && this != entity.getRootVehicle() && !entity.isTeammate(this));
             }
             if (player != null) {
-                this.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, player.getPos());
-                if (logicalSide/* && player.squaredDistanceTo(this) > 40 */) {
+                this.targetPlayer = player;
+                this.targetPos = player.getPos();
+                this.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, targetPos);
+                if (logicalSide && player.squaredDistanceTo(this.getEyePos()) > 8) {
                     this.activateLegs();
                 }
             } else {
@@ -112,6 +118,7 @@ public class WalkingCubeEntity extends Entity {
                 this.updateTrackedPosition(this.getX(), this.getY(), this.getZ());
             }
         }
+        this.claw.tick();
     }
 
     @SuppressWarnings("RedundantMethodOverride")
@@ -383,7 +390,19 @@ public class WalkingCubeEntity extends Entity {
         this.resetActiveLeg();
     }
 
+    public Stream<BoxPosPair> getLegBoundingBoxes() {
+        return this.legs.stream().map(leg -> new BoxPosPair(leg.getBoundingBox(), leg.getPos()));
+    }
+
+    public ClawOfLines getClaw() {
+        return this.claw;
+    }
+
     public record LegRenderState(Vec3d base, Vec3d end, int color) {
+
+    }
+
+    public record BoxPosPair(Box boundingBox, Vec3d pos) {
 
     }
 }
