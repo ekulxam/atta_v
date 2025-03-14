@@ -62,11 +62,11 @@ public class ClawOfLines extends Appendage {
     }
 
     @Override
-    protected Vec3d getDesiredRootPosition(final float tickDelta) {
-        return this.controller.getCameraPosVec(tickDelta);
+    protected Vec3d getDesiredRootPosition() {
+        return this.controller.getEyePos();
     }
 
-    protected @Nullable Vec3d getDesiredEndPosition(final float tickDelta) {
+    protected @Nullable Vec3d getDesiredEndPosition() {
         return this.targetPosition;
     }
 

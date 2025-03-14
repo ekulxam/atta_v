@@ -10,15 +10,12 @@ import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 import survivalblock.atmosphere.atta_v.client.AttaVClient;
 import survivalblock.atmosphere.atta_v.common.AttaV;
-import survivalblock.atmosphere.atta_v.common.entity.wanderer.Appendage;
-import survivalblock.atmosphere.atta_v.common.entity.wanderer.ClawOfLines;
 import survivalblock.atmosphere.atta_v.common.entity.wanderer.WalkingCubeEntity;
 
 import java.util.List;

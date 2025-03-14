@@ -63,7 +63,7 @@ public class WalkingCubeEntity extends Entity {
         boolean logicalSide = this.isLogicalSideForUpdatingMovement();
         World world = this.getWorld();
         boolean client = world.isClient();
-        if (!client || logicalSide) {
+        if (logicalSide) {
             NbtCompound nbt = new NbtCompound();
             this.writeLegDataToNbt(nbt);
             TripodLegUpdatePayload payload = new TripodLegUpdatePayload(this.getId(), nbt);
@@ -279,7 +279,6 @@ public class WalkingCubeEntity extends Entity {
     }
 
     public List<Appendage.PositionColorContainer> getLegPositions(final float tickDelta) {
-        this.legs.forEach(leg -> leg.baseTick(tickDelta));
         return this.legs.stream().map(leg -> new Appendage.PositionColorContainer(leg.getPositions(tickDelta), leg == this.activeLeg.get() ? 0xFFFF0000 : 0xFF000000)).toList();
     }
 

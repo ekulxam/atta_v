@@ -54,10 +54,9 @@ public class TripodLeg extends Appendage {
     private static final Box NULL_BOX = new Box(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
     private Box boundingBox = NULL_BOX;
     private Vec3d velocity = Vec3d.ZERO;
-    private boolean dirty;
 
     public TripodLeg(WalkingCubeEntity controller) {
-        super(controller, 80, 1, true);
+        super(controller, 20, 25, true);
     }
 
     private boolean onGround;
@@ -82,7 +81,7 @@ public class TripodLeg extends Appendage {
     public Optional<BlockPos> supportingBlockPos = Optional.empty();
     private boolean forceUpdateSupportingBlockPos = false;
 
-    private final double xz = Math.sqrt(this.segmentLength) / 2.5;
+    final double xz = Math.sqrt(this.segmentLength) / 2.5;
 
     @SuppressWarnings("unused")
     public final void setPosition(Vec3d pos) {
@@ -90,15 +89,15 @@ public class TripodLeg extends Appendage {
     }
 
     @Override
-    protected void resetPositions(List<Vec3d> list, final float tickDelta) {
+    protected void resetPositions(List<Vec3d> list) {
         list.clear();
-        Vec3d pos = this.getDesiredRootPosition(tickDelta);
+        Vec3d pos = this.getDesiredRootPosition();
         if (pos == null) {
             return;
         }
         Vec3d offset = this.controller.getDesiredOffset(this.controller.legs.indexOf(this), this.controller.getYaw()).normalize();
         for (int i = 0; i < this.segments; i++) {
-            list.add(new Vec3d(pos.x + offset.x * xz * i, pos.y + i * 0.165, pos.z + offset.z * xz * i));
+            list.add(new Vec3d(pos.x + offset.x * xz * i, pos.y + i * 0.2, pos.z + offset.z * xz * i));
         }
     }
 
@@ -117,7 +116,6 @@ public class TripodLeg extends Appendage {
 
     @Override
     public void tick() {
-        this.dirty = false;
         this.resetPosition();
         this.applyGravity();
         this.move(MovementType.SELF, this.getVelocity());
@@ -129,13 +127,13 @@ public class TripodLeg extends Appendage {
     }
 
     @Override
-    protected @Nullable Vec3d getDesiredRootPosition(final float tickDelta) {
-        return this.controller.getCameraPosVec(tickDelta);
+    protected @Nullable Vec3d getDesiredRootPosition() {
+        return this.controller.getEyePos().lerp(this.controller.getPos(), 0.5);
     }
 
     @Override
-    protected @Nullable Vec3d getDesiredEndPosition(final float tickDelta) {
-        return this.getLerpedPos(tickDelta);
+    protected @Nullable Vec3d getDesiredEndPosition() {
+        return this.getPos();
     }
 
     public void setOnGround(boolean onGround, Vec3d movement) {

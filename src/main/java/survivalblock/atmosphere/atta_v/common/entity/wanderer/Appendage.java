@@ -25,16 +25,16 @@ public abstract class Appendage {
         this.segments = segments;
         this.segmentLength = segmentLength;
         this.clientOnly = clientOnly;
-        this.resetPositions(this.positions, 1.0F);
+        this.resetPositions(this.positions);
         this.prevPositions = new ArrayList<>(this.positions);
     }
 
-    protected void resetPositions(List<Vec3d> list, final float tickDelta) {
+    protected void resetPositions(List<Vec3d> list) {
         if (!this.controller.getWorld().isClient() && clientOnly) {
             return;
         }
         list.clear();
-        Vec3d pos = this.getDesiredRootPosition(tickDelta);
+        Vec3d pos = this.getDesiredRootPosition();
         if (pos == null) {
             return;
         }
@@ -48,28 +48,31 @@ public abstract class Appendage {
             return;
         }
         this.prevPositions = new ArrayList<>(this.positions);
-        this.baseTick(1.0F);
-    }
-
-    public void baseTick(final float tickDelta) {
-        this.resetPositions(this.positions, tickDelta);
-        Vec3d targetPosition = this.getDesiredEndPosition(tickDelta);
+        this.resetPositions(this.positions);
+        Vec3d targetPosition = this.getDesiredEndPosition();
         if (targetPosition != null) {
             FabrIKSolver.solve(this.positions, targetPosition);
         }
     }
 
-    protected abstract @Nullable Vec3d getDesiredRootPosition(final float tickDelta);
-    protected abstract @Nullable Vec3d getDesiredEndPosition(final float tickDelta);
+    protected abstract @Nullable Vec3d getDesiredRootPosition();
+    protected abstract @Nullable Vec3d getDesiredEndPosition();
 
     /**
      * Returns a read-only view of {@link Appendage#positions}
      * @return an {@link ImmutableList}
      */
-    public final ImmutableList<Vec3d> getPositions(final float tickDelta) {
+    public final List<Vec3d> getPositions(final float tickDelta) {
+        /*
+        this.prevPositions = new ArrayList<>(this.positions);
+        Vec3d targetPosition = this.getDesiredEndPosition();
+        if (targetPosition != null) {
+            FabrIKSolver.solve(this.positions, targetPosition);
+        }
+         */
         ImmutableList.Builder<Vec3d> builder = ImmutableList.builder();
         for (int i = 0; i < prevPositions.size(); i++) {
-            builder.add(positions.get(i));
+            builder.add(prevPositions.get(i).lerp(positions.get(i), tickDelta));
         }
         return builder.build();
     }
