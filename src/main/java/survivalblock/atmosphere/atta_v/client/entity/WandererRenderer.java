@@ -63,8 +63,9 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
         matrixStack.pop();
         // unscale MatrixStack BEFORE rendering legs, otherwise you'll be in for a world of (rendering) pain
         VertexConsumer lines = LINES.apply(vertexConsumerProvider);
-        entity.getLegPositions().forEach(container -> renderAppendage(entity, container.positions(), matrixStack, lines, container.color()));
-        renderAppendage(entity, entity.getClaw().getPositions(), matrixStack, lines);
+        Vec3d lerpedPos =  entity.getLerpedPos(tickDelta);
+        entity.getLegPositions(tickDelta).forEach(container -> renderAppendage(entity, lerpedPos, container.positions(), matrixStack, lines, container.color()));
+        renderAppendage(entity, lerpedPos, entity.getClaw().getPositions(tickDelta), matrixStack, lines);
         super.render(entity, yaw, tickDelta, matrixStack, vertexConsumerProvider, light);
     }
 
@@ -72,17 +73,16 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
         this.model.render(matrixStack, vertexConsumer, light, OverlayTexture.DEFAULT_UV, showBody ? 654311423 : -1);
     }
 
-    private static void renderAppendage(WalkingCubeEntity walkingCube, List<Vec3d> positions, MatrixStack matrixStack, VertexConsumer lines) {
-        renderAppendage(walkingCube, positions, matrixStack, lines, 0xFF0000FF);
+    private static void renderAppendage(WalkingCubeEntity walkingCube, Vec3d entityPos, List<Vec3d> positions, MatrixStack matrixStack, VertexConsumer lines) {
+        renderAppendage(walkingCube, entityPos, positions, matrixStack, lines, 0xFF0000FF);
     }
 
-    private static void renderAppendage(WalkingCubeEntity walkingCube, List<Vec3d> positions, MatrixStack matrixStack, VertexConsumer lines, int color) {
+    private static void renderAppendage(WalkingCubeEntity walkingCube, Vec3d entityPos, List<Vec3d> positions, MatrixStack matrixStack, VertexConsumer lines, int color) {
         Vec3d previous = positions.getFirst();
         Vec3d current;
-        Vec3d pos = walkingCube.getPos();
         for (int i = 1; i < positions.size(); i++) {
             current = positions.get(i);
-            drawLine(pos, current, previous, matrixStack, lines, color);
+            drawLine(entityPos, current, previous, matrixStack, lines, color);
             previous = current;
         }
     }

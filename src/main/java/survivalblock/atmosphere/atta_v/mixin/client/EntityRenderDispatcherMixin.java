@@ -48,9 +48,17 @@ public class EntityRenderDispatcherMixin {
     @Inject(method = "renderHitbox", at = @At(value = "HEAD"))
     private static void renderLegHitboxes(MatrixStack matrices, VertexConsumer vertices, Entity entity, float tickDelta, float red, float green, float blue, CallbackInfo ci) {
         if (entity instanceof WalkingCubeEntity walkingCube) {
-            walkingCube.getLegBoundingBoxes().forEach(pair -> {
-                Box box = pair.boundingBox().offset(-entity.getX(), -entity.getY(), -entity.getZ());
+            walkingCube.getLegBoundingBoxes(tickDelta).forEach(pair -> {
+                Vec3d lerpedPos = entity.getLerpedPos(tickDelta);
+                Box box = pair.boundingBox().offset(-lerpedPos.x, -lerpedPos.y, -lerpedPos.z);
+                matrices.push();
+                Vec3d pos = pair.pos();
+                Vec3d legLerpedPos = pair.lerpedPos();
+                if (pos != null && legLerpedPos != null) {
+                    matrices.translate(pos.x - legLerpedPos.x, pos.y - legLerpedPos.y, pos.z - legLerpedPos.z);
+                }
                 WorldRenderer.drawBox(matrices, vertices, box, red, green, blue, 1.0F);
+                matrices.pop();
             });
         }
     }

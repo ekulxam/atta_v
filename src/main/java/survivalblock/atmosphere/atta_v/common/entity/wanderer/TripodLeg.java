@@ -54,9 +54,10 @@ public class TripodLeg extends Appendage {
     private static final Box NULL_BOX = new Box(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
     private Box boundingBox = NULL_BOX;
     private Vec3d velocity = Vec3d.ZERO;
+    private boolean dirty;
 
     public TripodLeg(WalkingCubeEntity controller) {
-        super(controller, 75, 0.6);
+        super(controller, 80, 1, true);
     }
 
     private boolean onGround;
@@ -81,22 +82,23 @@ public class TripodLeg extends Appendage {
     public Optional<BlockPos> supportingBlockPos = Optional.empty();
     private boolean forceUpdateSupportingBlockPos = false;
 
+    private final double xz = Math.sqrt(this.segmentLength) / 2.5;
+
     @SuppressWarnings("unused")
     public final void setPosition(Vec3d pos) {
         this.setPosition(pos.getX(), pos.getY(), pos.getZ());
     }
 
     @Override
-    protected void resetPositions() {
-        this.positions.clear();
-        Vec3d pos = this.getDesiredRootPosition();
+    protected void resetPositions(List<Vec3d> list, final float tickDelta) {
+        list.clear();
+        Vec3d pos = this.getDesiredRootPosition(tickDelta);
         if (pos == null) {
             return;
         }
-        final double xz = Math.sqrt(this.segmentLength) / 4;
         Vec3d offset = this.controller.getDesiredOffset(this.controller.legs.indexOf(this), this.controller.getYaw()).normalize();
         for (int i = 0; i < this.segments; i++) {
-            this.positions.add(new Vec3d(pos.x + offset.x * xz * i, pos.y + i * 0.15, pos.z + offset.z * xz * i));
+            list.add(new Vec3d(pos.x + offset.x * xz * i, pos.y + i * 0.165, pos.z + offset.z * xz * i));
         }
     }
 
@@ -115,27 +117,25 @@ public class TripodLeg extends Appendage {
 
     @Override
     public void tick() {
+        this.dirty = false;
         this.resetPosition();
-        if (this.isLogicalSideForUpdatingMovement()) {
-            this.applyGravity();
-            this.move(MovementType.SELF, this.getVelocity());
-        }
+        this.applyGravity();
+        this.move(MovementType.SELF, this.getVelocity());
 
         if (!this.getWorld().isSpaceEmpty(this.getBoundingBox())) {
             this.pushOutOfBlocks(this.getX(), (this.getBoundingBox().minY + this.getBoundingBox().maxY) / 2.0, this.getZ());
         }
-        this.resetPositions();
         super.tick();
     }
 
     @Override
-    protected @Nullable Vec3d getDesiredRootPosition() {
-        return this.controller.getEyePos();
+    protected @Nullable Vec3d getDesiredRootPosition(final float tickDelta) {
+        return this.controller.getCameraPosVec(tickDelta);
     }
 
     @Override
-    protected @Nullable Vec3d getDesiredEndPosition() {
-        return this.pos;
+    protected @Nullable Vec3d getDesiredEndPosition(final float tickDelta) {
+        return this.getLerpedPos(tickDelta);
     }
 
     public void setOnGround(boolean onGround, Vec3d movement) {
@@ -396,7 +396,8 @@ public class TripodLeg extends Appendage {
     protected void applyGravity() {
         double d = this.getFinalGravity();
         if (d != 0.0) {
-            this.setVelocity(this.getVelocity().add(0.0, -d, 0.0));
+            Vec3d v = this.getVelocity();
+            this.setVelocity(v.x, v.y -d, v.z);
         }
     }
 
@@ -455,7 +456,7 @@ public class TripodLeg extends Appendage {
     }
 
     /**
-     * Not to be confused with {@link Appendage#resetPositions()}
+     * Not to be confused with {@link Appendage#resetPositions(List)}
      */
     public final void resetPosition() {
         double d = this.getX();

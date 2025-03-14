@@ -1,6 +1,5 @@
 package survivalblock.atmosphere.atta_v.common.entity.wanderer;
 
-import com.google.common.collect.ImmutableList;
 import net.minecraft.command.argument.EntityAnchorArgumentType;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
@@ -64,7 +63,7 @@ public class WalkingCubeEntity extends Entity {
         boolean logicalSide = this.isLogicalSideForUpdatingMovement();
         World world = this.getWorld();
         boolean client = world.isClient();
-        if (logicalSide) {
+        if (!client || logicalSide) {
             NbtCompound nbt = new NbtCompound();
             this.writeLegDataToNbt(nbt);
             TripodLegUpdatePayload payload = new TripodLegUpdatePayload(this.getId(), nbt);
@@ -77,6 +76,7 @@ public class WalkingCubeEntity extends Entity {
         super.tick();
         LivingEntity controllingPassenger = this.getControllingPassenger();
         this.targetPos = null;
+        this.targetPlayer = null;
         if (controllingPassenger != null) {
             this.tickRotation(getControlledRotation(controllingPassenger));
             if (logicalSide && (this.shouldAccelerateForward || this.shouldGoBackward || this.shouldTurnRight || this.shouldTurnLeft)) {
@@ -201,6 +201,9 @@ public class WalkingCubeEntity extends Entity {
     @Override
     protected void readCustomDataFromNbt(NbtCompound nbt) {
         this.readLegDataFromNbt(nbt);
+        if (nbt.contains("clawData")) {
+            this.claw.readNbt(nbt.getCompound("clawData"));
+        }
     }
 
     public void readLegDataFromNbt(NbtCompound nbt) {
@@ -242,6 +245,7 @@ public class WalkingCubeEntity extends Entity {
     @Override
     protected void writeCustomDataToNbt(NbtCompound nbt) {
         this.writeLegDataToNbt(nbt);
+        nbt.put("clawData", this.claw.writeNbt(new NbtCompound()));
     }
 
     protected void writeLegDataToNbt(NbtCompound nbt) {
@@ -252,7 +256,8 @@ public class WalkingCubeEntity extends Entity {
             nbt.putInt("activeLeg", this.legs.indexOf(active));
         }
         for (int i = 0; i < size; i++) {
-            nbt.put("leg" + i, this.legs.get(i).writeNbt(new NbtCompound()));
+            TripodLeg leg = this.legs.get(i);
+            nbt.put("leg" + i, leg.writeNbt(new NbtCompound()));
         }
     }
 
@@ -273,8 +278,9 @@ public class WalkingCubeEntity extends Entity {
         return list.get(Math.floorDiv(size, 2));
     }
 
-    public List<Appendage.PositionColorContainer> getLegPositions() {
-        return this.legs.stream().map(leg -> new Appendage.PositionColorContainer(leg.getPositions(), leg == this.activeLeg.get() ? 0xFFFF0000 : 0xFF000000)).toList();
+    public List<Appendage.PositionColorContainer> getLegPositions(final float tickDelta) {
+        this.legs.forEach(leg -> leg.baseTick(tickDelta));
+        return this.legs.stream().map(leg -> new Appendage.PositionColorContainer(leg.getPositions(tickDelta), leg == this.activeLeg.get() ? 0xFFFF0000 : 0xFF000000)).toList();
     }
 
     @Override
@@ -376,19 +382,15 @@ public class WalkingCubeEntity extends Entity {
         this.resetActiveLeg();
     }
 
-    public Stream<BoxPosPair> getLegBoundingBoxes() {
-        return this.legs.stream().map(leg -> new BoxPosPair(leg.getBoundingBox(), leg.getPos()));
+    public Stream<BoxPosContainer> getLegBoundingBoxes(float tickDelta) {
+        return this.legs.stream().map(leg -> new BoxPosContainer(leg.getBoundingBox(), leg.getPos(), leg.getLerpedPos(tickDelta)));
     }
 
     public ClawOfLines getClaw() {
         return this.claw;
     }
 
-    public record LegRenderState(Vec3d base, Vec3d end, int color) {
-
-    }
-
-    public record BoxPosPair(Box boundingBox, Vec3d pos) {
+    public record BoxPosContainer(Box boundingBox, Vec3d pos, Vec3d lerpedPos) {
 
     }
 }

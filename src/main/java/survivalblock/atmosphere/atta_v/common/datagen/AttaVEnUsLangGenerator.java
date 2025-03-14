@@ -37,5 +37,6 @@ public class AttaVEnUsLangGenerator extends FabricLanguageProvider {
         // gamerules
         translationBuilder.add(AttaVGameRules.WANDERER_STOMP_DOES_DAMAGE.getTranslationKey(), "Atta V - Wanderer Stomp Does Damage");
         translationBuilder.add(AttaVGameRules.WANDERER_SEEKS_OUT_PLAYERS.getTranslationKey(), "Atta V - Wanderer Seeks Out Players");
+        translationBuilder.add(AttaVGameRules.WANDERER_FLINGS_PLAYERS.getTranslationKey(), "Atta V - Wanderer Flings Players");
     }
 }

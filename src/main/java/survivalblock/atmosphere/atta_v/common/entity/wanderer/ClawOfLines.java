@@ -1,8 +1,14 @@
 package survivalblock.atmosphere.atta_v.common.entity.wanderer;
 
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
+import survivalblock.atmosphere.atta_v.common.AttaV;
+import survivalblock.atmosphere.atta_v.common.init.AttaVGameRules;
 
 public class ClawOfLines extends Appendage {
 
@@ -12,11 +18,10 @@ public class ClawOfLines extends Appendage {
     private int grabTicks = 0;
 
     public ClawOfLines(WalkingCubeEntity controller) {
-        super(controller, 60, 0.3);
+        super(controller, 60, 0.3, false);
     }
 
     public void tick() {
-        this.resetPositions();
         if (this.controller.targetPos != null) {
             if (this.targetPosition == null) {
                 this.targetPosition = this.controller.targetPos;
@@ -26,7 +31,8 @@ public class ClawOfLines extends Appendage {
         }
         super.tick();
         this.target = this.controller.targetPlayer;
-        if (!this.controller.getWorld().isClient() && this.target != null) {
+        World world = this.controller.getWorld();
+        if (!world.isClient() && this.target != null && world.getGameRules().getBoolean(AttaVGameRules.WANDERER_FLINGS_PLAYERS)) {
             Vec3d end = this.getEnd();
             double distance = end.distanceTo(target.getPos());
             if (distance < 2 || (grab && distance < 10)) {
@@ -46,6 +52,7 @@ public class ClawOfLines extends Appendage {
         }
     }
 
+    @SuppressWarnings("unused")
     public Vec3d getRoot() {
         return this.positions.getFirst();
     }
@@ -55,12 +62,32 @@ public class ClawOfLines extends Appendage {
     }
 
     @Override
-    protected Vec3d getDesiredRootPosition() {
-        return this.controller.getEyePos();
+    protected Vec3d getDesiredRootPosition(final float tickDelta) {
+        return this.controller.getCameraPosVec(tickDelta);
     }
 
-    @Override
-    protected @Nullable Vec3d getDesiredEndPosition() {
+    protected @Nullable Vec3d getDesiredEndPosition(final float tickDelta) {
         return this.targetPosition;
+    }
+
+    protected NbtCompound writeNbt(NbtCompound nbt) {
+        RegistryWrapper.WrapperLookup wrapperLookup = this.controller.getRegistryManager();
+        if (this.targetPosition != null) {
+            nbt.put("targetPos", Vec3d.CODEC.encodeStart(wrapperLookup.getOps(NbtOps.INSTANCE), this.targetPosition).getOrThrow());
+        }
+        nbt.putBoolean("grabbing", this.grab);
+        nbt.putInt("grabTicks", this.grabTicks);
+        return nbt;
+    }
+
+    protected void readNbt(NbtCompound nbt) {
+        RegistryWrapper.WrapperLookup wrapperLookup = this.controller.getRegistryManager();
+        if (nbt.contains("targetPos")) {
+            this.targetPosition = Vec3d.CODEC.parse(wrapperLookup.getOps(NbtOps.INSTANCE), nbt.get("targetPos"))
+                    .resultOrPartial(error -> AttaV.LOGGER.error("Tried to load invalid Vec3d for targetPos: '{}'", error))
+                    .orElse(null);
+        }
+        this.grab = nbt.getBoolean("grabbing");
+        this.grabTicks = nbt.getInt("grabTicks");
     }
 }
