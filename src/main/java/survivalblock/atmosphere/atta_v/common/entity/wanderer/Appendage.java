@@ -63,18 +63,34 @@ public abstract class Appendage {
      * @return an {@link ImmutableList}
      */
     public final List<Vec3d> getPositions(final float tickDelta) {
-        /*
-        this.prevPositions = new ArrayList<>(this.positions);
-        Vec3d targetPosition = this.getDesiredEndPosition();
-        if (targetPosition != null) {
-            FabrIKSolver.solve(this.positions, targetPosition);
-        }
-         */
-        ImmutableList.Builder<Vec3d> builder = ImmutableList.builder();
+        List<Vec3d> list = new ArrayList<>();
         for (int i = 0; i < prevPositions.size(); i++) {
-            builder.add(prevPositions.get(i).lerp(positions.get(i), tickDelta));
+            list.add(prevPositions.get(i).lerp(positions.get(i), tickDelta));
         }
-        return builder.build();
+        Vec3d prev;
+        Vec3d prev2;
+        Vec3d start;
+        Vec3d end;
+        Vec3d current;
+        List<Vec3d> returned = new ArrayList<>();
+        returned.add(list.getFirst());
+        for (int i = 2; i < list.size(); i++) {
+            prev = list.get(i - 2);
+            prev2 = list.get(i - 1);
+            current = list.get(i);
+            start = prev.lerp(prev2, 0.5f);
+            end = prev2.lerp(current, 0.5f);
+            for (float f = 0; f < 1; f += 0.1f) {
+                returned.add(doubleLerp(start, prev2, end, f));
+            }
+        }
+        returned.add(list.getLast());
+        return returned;
+    }
+
+    // thanks to falkreon for teaching me about splines and béziers
+    public static Vec3d doubleLerp(Vec3d one, Vec3d two, Vec3d three, final float delta) {
+        return one.lerp(two, delta).lerp( two.lerp(three, delta) , delta);
     }
 
     public record PositionColorContainer(List<Vec3d> positions, int color) {

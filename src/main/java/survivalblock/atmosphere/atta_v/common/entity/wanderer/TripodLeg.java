@@ -56,7 +56,7 @@ public class TripodLeg extends Appendage {
     private Vec3d velocity = Vec3d.ZERO;
 
     public TripodLeg(WalkingCubeEntity controller) {
-        super(controller, 20, 25, true);
+        super(controller, 6, 400, true);
     }
 
     private boolean onGround;
