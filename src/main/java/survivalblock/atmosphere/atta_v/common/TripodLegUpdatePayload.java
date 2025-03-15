@@ -27,7 +27,7 @@ public record TripodLegUpdatePayload(int entityId, NbtCompound nbt) implements C
 
     public void sendS2C(ServerWorld serverWorld, WalkingCubeEntity walkingCube, @Nullable ServerPlayerEntity except) {
         serverWorld.getPlayers().forEach(serverPlayer -> {
-            if (!serverPlayer.equals(except) && serverPlayer.distanceTo(walkingCube) < 128) {
+            if (!serverPlayer.equals(except) && Math.ceil(serverPlayer.distanceTo(walkingCube)) <= (walkingCube.getType().getMaxTrackDistance() * 16)) {
                 ServerPlayNetworking.send(serverPlayer, this);
             }
         });

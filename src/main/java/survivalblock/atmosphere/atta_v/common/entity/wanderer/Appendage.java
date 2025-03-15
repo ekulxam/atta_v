@@ -93,7 +93,7 @@ public abstract class Appendage {
         return one.lerp(two, delta).lerp( two.lerp(three, delta) , delta);
     }
 
-    public record PositionColorContainer(List<Vec3d> positions, int color) {
+    public record PositionColorContainer(List<Vec3d> positions, int color) implements PositionContainer {
 
     }
 }

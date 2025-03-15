@@ -10,7 +10,9 @@ import org.jetbrains.annotations.Nullable;
 import survivalblock.atmosphere.atta_v.common.AttaV;
 import survivalblock.atmosphere.atta_v.common.init.AttaVGameRules;
 
-public class ClawOfLines extends Appendage {
+import java.util.List;
+
+public class ClawOfLines extends Appendage implements PositionContainer {
 
     private @Nullable Vec3d targetPosition = null;
     private @Nullable PlayerEntity target = null;
@@ -89,5 +91,10 @@ public class ClawOfLines extends Appendage {
         }
         this.grab = nbt.getBoolean("grabbing");
         this.grabTicks = nbt.getInt("grabTicks");
+    }
+
+    @Override
+    public List<Vec3d> positions() {
+        return this.positions;
     }
 }

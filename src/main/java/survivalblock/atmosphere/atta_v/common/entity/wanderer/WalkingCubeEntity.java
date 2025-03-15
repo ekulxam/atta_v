@@ -86,7 +86,7 @@ public class WalkingCubeEntity extends Entity {
             this.setInputs();
             PlayerEntity player = null;
             if (world.getGameRules().getBoolean(AttaVGameRules.WANDERER_SEEKS_OUT_PLAYERS)) {
-                player = world.getClosestPlayer(this.getX(), this.getY(), this.getZ(), 64,
+                player = world.getClosestPlayer(this.getX(), this.getY(), this.getZ(), 96,
                         entity -> entity.isAlive() && EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR.test(entity)
                                 && this != entity.getRootVehicle() && !entity.isTeammate(this));
             }

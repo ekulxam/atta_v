@@ -11,7 +11,7 @@ import survivalblock.atmosphere.atta_v.common.entity.wanderer.WalkingCubeEntity;
 public class AttaVEntityTypes {
 
     @SuppressWarnings("RedundantTypeArguments")
-    public static final EntityType<WalkingCubeEntity> WANDERER = registerEntity("wanderer", EntityType.Builder.<WalkingCubeEntity>create(WalkingCubeEntity::new, SpawnGroup.MISC).dimensions(3, 3).eyeHeight(1.5f).passengerAttachments(0.8f));
+    public static final EntityType<WalkingCubeEntity> WANDERER = registerEntity("wanderer", EntityType.Builder.<WalkingCubeEntity>create(WalkingCubeEntity::new, SpawnGroup.MISC).dimensions(3, 3).eyeHeight(1.5f).passengerAttachments(0.8f).maxTrackingRange(16));
 
     @SuppressWarnings("SameParameterValue")
     private static <T extends Entity> EntityType<T> registerEntity(String name, EntityType.Builder<T> builder) {

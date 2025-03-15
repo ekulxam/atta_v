@@ -427,7 +427,7 @@ public class TripodLeg extends Appendage {
             DamageSource source = new DamageSource(world.getRegistryManager().getWrapperOrThrow(RegistryKeys.DAMAGE_TYPE).getOrThrow(AttaVDamageTypes.WANDERER_STOMP), this.controller);
             world.getEntitiesByClass(LivingEntity.class, this.getBoundingBox().expand(expand), living ->
                     living.isAlive() && !living.isInvulnerable() && !living.isSpectator() && !this.controller.equals(living.getRootVehicle()) && !living.isTeammate(this.controller)).forEach(living -> {
-                living.damage(source, 3f);
+                living.damage(source, 5.3f);
                 Vec3d vec3d = living.getPos().subtract(this.pos);
                 double knockback = Math.max(0, (expand + 0.7 - vec3d.length())) * 1.4F
                         * (1.0 - living.getAttributeValue(EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE));
