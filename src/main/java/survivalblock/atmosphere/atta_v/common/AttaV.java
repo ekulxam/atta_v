@@ -6,11 +6,9 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
-import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import survivalblock.atmosphere.atta_v.common.datagen.AttaVSoundEvents;
@@ -18,6 +16,8 @@ import survivalblock.atmosphere.atta_v.common.entity.wanderer.WalkingCubeEntity;
 import survivalblock.atmosphere.atta_v.common.init.AttaVCommands;
 import survivalblock.atmosphere.atta_v.common.init.AttaVEntityTypes;
 import survivalblock.atmosphere.atta_v.common.init.AttaVGameRules;
+import survivalblock.atmosphere.atta_v.common.networking.RideWandererS2CPayload;
+import survivalblock.atmosphere.atta_v.common.networking.TripodLegUpdatePayload;
 
 public class AttaV implements ModInitializer {
 	public static final String MOD_ID = "atta_v";
@@ -43,6 +43,8 @@ public class AttaV implements ModInitializer {
 				payload.sendS2C(serverWorld, walkingCube, player);
 			}
 		});
+
+		PayloadTypeRegistry.playS2C().register(RideWandererS2CPayload.ID, RideWandererS2CPayload.PACKET_CODEC);
 
 		CommandRegistrationCallback.EVENT.register(AttaVCommands::register);
 	}

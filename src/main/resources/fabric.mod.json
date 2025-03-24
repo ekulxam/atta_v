@@ -24,6 +24,12 @@
 		],
 		"fabric-datagen": [
 			"survivalblock.atmosphere.atta_v.common.datagen.AttaVDataGenerator"
+		],
+		"cardinal-components-entity": [
+			"survivalblock.atmosphere.atta_v.common.init.AttaVEntityComponents"
+		],
+		"cardinal-components-world": [
+			"survivalblock.atmosphere.atta_v.common.init.AttaVWorldComponents"
 		]
 	},
 	"mixins": [
@@ -34,5 +40,11 @@
 		"minecraft": "~1.21.1",
 		"java": ">=21",
 		"fabric-api": "*"
+	},
+	"custom": {
+		"cardinal-components": [
+			"atta_v:entity_path",
+			"atta_v:world_path"
+		]
 	}
 }

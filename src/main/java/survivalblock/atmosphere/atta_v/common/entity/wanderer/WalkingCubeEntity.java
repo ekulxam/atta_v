@@ -1,5 +1,6 @@
 package survivalblock.atmosphere.atta_v.common.entity.wanderer;
 
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.command.argument.EntityAnchorArgumentType;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
@@ -8,6 +9,7 @@ import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.predicate.entity.EntityPredicates;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
@@ -17,7 +19,13 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import survivalblock.atmosphere.atta_v.common.TripodLegUpdatePayload;
+import survivalblock.atmosphere.atta_v.common.entity.ControlBoarder;
+import survivalblock.atmosphere.atta_v.common.entity.paths.EntityPath;
+import survivalblock.atmosphere.atta_v.common.entity.paths.EntityPathComponent;
+import survivalblock.atmosphere.atta_v.common.entity.paths.Pathfinder;
+import survivalblock.atmosphere.atta_v.common.init.AttaVEntityComponents;
+import survivalblock.atmosphere.atta_v.common.networking.RideWandererS2CPayload;
+import survivalblock.atmosphere.atta_v.common.networking.TripodLegUpdatePayload;
 import survivalblock.atmosphere.atta_v.common.init.AttaVGameRules;
 
 import java.util.ArrayList;
@@ -25,9 +33,10 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
-public class WalkingCubeEntity extends Entity {
+public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfinder {
 
     public static final double SQAURED_DISTANCE_THRESHOLD = 45*45;
+    public static final int BODY_HEIGHT_OFFSET = 5;
 
     protected final List<@NotNull TripodLeg> legs = new ArrayList<>();
     protected final ClawOfLines claw = new ClawOfLines(this);
@@ -40,8 +49,11 @@ public class WalkingCubeEntity extends Entity {
     private boolean shouldTurnRight;
 
     protected final AtomicReference<@Nullable TripodLeg> activeLeg = new AtomicReference<>();
+
     protected @Nullable Vec3d targetPos;
     protected @Nullable PlayerEntity targetPlayer;
+
+    protected boolean rideable = true;
 
     public WalkingCubeEntity(EntityType<?> type, World world) {
         super(type, world);
@@ -64,17 +76,11 @@ public class WalkingCubeEntity extends Entity {
         World world = this.getWorld();
         boolean client = world.isClient();
         if (logicalSide) {
-            NbtCompound nbt = new NbtCompound();
-            this.writeLegDataToNbt(nbt);
-            TripodLegUpdatePayload payload = new TripodLegUpdatePayload(this.getId(), nbt);
-            if (world instanceof ServerWorld serverWorld) {
-                payload.sendS2C(serverWorld, this, null);
-            } else {
-                payload.sendC2S();
-            }
+            this.syncNbt(world, true);
         }
         super.tick();
         LivingEntity controllingPassenger = this.getControllingPassenger();
+        EntityPathComponent entityPathComponent = AttaVEntityComponents.ENTITY_PATH.get(this);
         this.targetPos = null;
         this.targetPlayer = null;
         if (controllingPassenger != null) {
@@ -84,22 +90,44 @@ public class WalkingCubeEntity extends Entity {
             }
         } else {
             this.setInputs();
-            PlayerEntity player = null;
-            if (world.getGameRules().getBoolean(AttaVGameRules.WANDERER_SEEKS_OUT_PLAYERS)) {
-                player = world.getClosestPlayer(this.getX(), this.getY(), this.getZ(), 96,
-                        entity -> entity.isAlive() && EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR.test(entity)
-                                && this != entity.getRootVehicle() && !entity.isTeammate(this));
-            }
-            if (player != null) {
-                this.targetPlayer = player;
-                this.targetPos = player.getPos();
+            if (entityPathComponent.entityPath != null) {
+                List<Vec3d> nodes = entityPathComponent.entityPath.nodes;
+                int size = nodes.size();
+                if (entityPathComponent.nodeIndex < 0 || entityPathComponent.nodeIndex > size - 1) {
+                    entityPathComponent.nodeIndex = 0;
+                }
+                Vec3d target = nodes.get(entityPathComponent.nodeIndex);
+                if (this.targetPos == null) {
+                    this.targetPos = target;
+                }
+                if (target.squaredDistanceTo(this.getPos()) < 56) {
+                    entityPathComponent.nodeIndex = (entityPathComponent.nodeIndex + 1) % size;
+                    if (!client) {
+                        entityPathComponent.sync();
+                    }
+                }
                 this.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, targetPos);
-                if (logicalSide && player.squaredDistanceTo(this.getEyePos()) > 8) {
+                if (logicalSide) {
                     this.activateLegs();
                 }
             } else {
-                this.setYaw(0);
-                this.setPitch(0);
+                PlayerEntity player = null;
+                if (world.getGameRules().getBoolean(AttaVGameRules.WANDERER_SEEKS_OUT_PLAYERS)) {
+                    player = world.getClosestPlayer(this.getX(), this.getY(), this.getZ(), 96,
+                            entity -> entity.isAlive() && EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR.test(entity)
+                                    && this != entity.getRootVehicle() && !entity.isTeammate(this));
+                }
+                if (player != null) {
+                    this.targetPlayer = player;
+                    this.targetPos = player.getPos();
+                    this.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, targetPos);
+                    if (logicalSide && player.squaredDistanceTo(this.getEyePos()) > 8) {
+                        this.activateLegs();
+                    }
+                } else {
+                    this.setYaw(0);
+                    this.setPitch(0);
+                }
             }
         }
         this.legs.forEach(tripodLeg -> {
@@ -109,7 +137,7 @@ public class WalkingCubeEntity extends Entity {
             }
         });
         double x = this.legs.stream().mapToDouble(TripodLeg::getX).average().orElse(this.getX());
-        double y = findMedian(this.legs.stream().map(TripodLeg::getY).sorted(Double::compare).toList()) + 5;
+        double y = findMedian(this.legs.stream().map(TripodLeg::getY).sorted(Double::compare).toList()) + BODY_HEIGHT_OFFSET;
         double z = this.legs.stream().mapToDouble(TripodLeg::getZ).average().orElse(this.getZ());
         Vec3d updatedPos = new Vec3d(x, y, z);
         if (this.getPos().squaredDistanceTo(updatedPos) > 1.0E-7) {
@@ -121,7 +149,7 @@ public class WalkingCubeEntity extends Entity {
         this.claw.tick();
     }
 
-    @SuppressWarnings("RedundantMethodOverride")
+    @SuppressWarnings({"RedundantMethodOverride", "RedundantSuppression"})
     @Override
     protected double getGravity() {
         return 0.0;
@@ -142,11 +170,19 @@ public class WalkingCubeEntity extends Entity {
             TripodLeg leg = this.legs.get(i);
             this.recalibrateLeg(leg, i, pos, yaw);
         }
-        if (sync && this.getWorld() instanceof ServerWorld serverWorld) {
-            NbtCompound nbt = new NbtCompound();
-            this.writeLegDataToNbt(nbt);
-            TripodLegUpdatePayload payload = new TripodLegUpdatePayload(this.getId(), nbt);
+        if (sync) {
+            this.syncNbt(this.getWorld(), false);
+        }
+    }
+
+    private void syncNbt(World world, boolean syncClient) {
+        NbtCompound nbt = new NbtCompound();
+        this.writeLegDataToNbt(nbt);
+        TripodLegUpdatePayload payload = new TripodLegUpdatePayload(this.getId(), nbt);
+        if (world instanceof ServerWorld serverWorld) {
             payload.sendS2C(serverWorld, this, null);
+        } else if (syncClient) {
+            payload.sendC2S();
         }
     }
 
@@ -158,7 +194,7 @@ public class WalkingCubeEntity extends Entity {
     public void activateLegs() {
         TripodLeg active = this.resetActiveLeg();
         if (active.isOnGround()) {
-            final double sizeMultiplier = Math.max(0, Math.log10((double) this.legs.size())) + 0.6;
+            final double sizeMultiplier = Math.max(0, Math.log10(this.legs.size())) + 0.6;
             TripodLeg leg = this.getNextLeg(active);
             this.activeLeg.set(leg);
             final float yaw = this.getYaw();
@@ -204,6 +240,9 @@ public class WalkingCubeEntity extends Entity {
         if (nbt.contains("clawData")) {
             this.claw.readNbt(nbt.getCompound("clawData"));
         }
+        if (nbt.contains("rideable")) {
+            this.rideable = nbt.getBoolean("rideable");
+        }
     }
 
     public void readLegDataFromNbt(NbtCompound nbt) {
@@ -246,6 +285,7 @@ public class WalkingCubeEntity extends Entity {
     protected void writeCustomDataToNbt(NbtCompound nbt) {
         this.writeLegDataToNbt(nbt);
         nbt.put("clawData", this.claw.writeNbt(new NbtCompound()));
+        nbt.putBoolean("rideable", this.rideable);
     }
 
     protected void writeLegDataToNbt(NbtCompound nbt) {
@@ -298,11 +338,17 @@ public class WalkingCubeEntity extends Entity {
 
     @Override
     public ActionResult interact(PlayerEntity player, Hand hand) {
-        if (this.hasPassengers()) {
+        if (this.hasPassengers() || this.isRemoved()) {
             return super.interact(player, hand);
         }
-        player.startRiding(this);
-        return ActionResult.success(this.getWorld().isClient);
+        World world = this.getWorld();
+        if (player instanceof ServerPlayerEntity serverPlayer) {
+            if (this.rideable && world.getGameRules().getBoolean(AttaVGameRules.PLAYERS_CAN_RIDE_WANDERERS)) {
+                serverPlayer.startRiding(this);
+                ServerPlayNetworking.send(serverPlayer, new RideWandererS2CPayload(this));
+            }
+        }
+        return ActionResult.success(world.isClient);
     }
 
     /**
@@ -348,10 +394,6 @@ public class WalkingCubeEntity extends Entity {
         this.prevYaw = this.getYaw();
     }
 
-    public void setInputs(){
-        this.setInputs(false, false, false, false);
-    }
-
     public void setInputs(boolean pressingLeft, boolean pressingRight, boolean pressingForward, boolean pressingBack){
         this.shouldAccelerateForward = pressingForward;
         if (pressingForward) {
@@ -387,6 +429,19 @@ public class WalkingCubeEntity extends Entity {
 
     public ClawOfLines getClaw() {
         return this.claw;
+    }
+
+    @Override
+    public void followPath(@Nullable EntityPath entityPath) {
+        EntityPathComponent entityPathComponent = AttaVEntityComponents.ENTITY_PATH.get(this);
+        entityPathComponent.entityPath = entityPath;
+        entityPathComponent.nodeIndex = -1;
+        entityPathComponent.sync();
+    }
+
+    @Override
+    public boolean doesRenderOnFire() {
+        return false;
     }
 
     public record BoxPosContainer(Box boundingBox, Vec3d pos, Vec3d lerpedPos) {

@@ -167,13 +167,16 @@ public class TripodLeg extends Appendage {
         return this.onGround;
     }
 
+    @SuppressWarnings("unused")
     public void move(MovementType movementType, Vec3d movement) {
+        /*
         if (movementType == MovementType.PISTON) {
             movement = this.adjustMovementForPiston(movement);
             if (movement.equals(Vec3d.ZERO)) {
                 return;
             }
         }
+         */
 
         this.getWorld().getProfiler().push("move");
 
@@ -563,6 +566,7 @@ public class TripodLeg extends Appendage {
         this.boundingBox = boundingBox;
     }
 
+    @SuppressWarnings("unused")
     public boolean isLogicalSideForUpdatingMovement() {
         return this.controller.isLogicalSideForUpdatingMovement();
     }
