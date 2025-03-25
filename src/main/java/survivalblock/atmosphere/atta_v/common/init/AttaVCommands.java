@@ -68,7 +68,7 @@ public final class AttaVCommands {
                 .build();
 
         LiteralCommandNode<ServerCommandSource> findNode = CommandManager.literal("find")
-                //.requires(source -> source.hasPermissionLevel(1) || (source.getEntity() instanceof PlayerEntity player && player.isCreative()))
+                .requires(source -> source.hasPermissionLevel(1) || (source.getEntity() instanceof PlayerEntity player && player.isCreative()))
                 .executes(AttaVCommands::executeFind)
                 .build();
 
@@ -184,7 +184,8 @@ public final class AttaVCommands {
             Text.stringifiedTranslatable("commands.attav.path.nodes.get.indexoutofbounds", obj));
 
     public static void registerPathCommands(LiteralCommandNode<ServerCommandSource> attaVNode) {
-        LiteralCommandNode<ServerCommandSource> pathNode = CommandManager.literal("path").build();
+        LiteralCommandNode<ServerCommandSource> pathNode = CommandManager.literal("path")
+                .requires(source -> source.hasPermissionLevel(2)).build();
 
         LiteralCommandNode<ServerCommandSource> createNode = CommandManager.literal("create").then(CommandManager.argument("id", IdentifierArgumentType.identifier()).suggests(PATH_SUGGESTION_PROVIDER)
                 .executes(context -> {
