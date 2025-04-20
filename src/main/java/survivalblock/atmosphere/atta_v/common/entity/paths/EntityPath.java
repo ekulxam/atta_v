@@ -55,4 +55,15 @@ public class EntityPath {
         }
         return entityPath;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof EntityPath entityPath)) {
+            return false;
+        }
+        return this.id == entityPath.id;
+    }
 }

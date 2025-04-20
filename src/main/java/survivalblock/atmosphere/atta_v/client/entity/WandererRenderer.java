@@ -117,10 +117,16 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
     }
 
     public static void drawLine(Vec3d pos, Vec3d start, Vec3d end, MatrixStack matrixStack, VertexConsumer lines, int color) {
+        drawLine(start.subtract(pos).toVector3f(), end.subtract(start), matrixStack, lines, color);
+    }
+
+    public static void drawLine(Vec3d start, Vec3d end, MatrixStack matrixStack, VertexConsumer lines, int color) {
+        drawLine(start.toVector3f(), end.subtract(start), matrixStack, lines, color);
+    }
+
+    private static void drawLine(Vector3f offset, Vec3d rotationVec, MatrixStack matrixStack, VertexConsumer lines, int color) {
         matrixStack.push();
         MatrixStack.Entry entry = matrixStack.peek();
-        Vector3f offset = start.subtract(pos).toVector3f();
-        Vec3d rotationVec = end.subtract(start);
         lines.vertex(entry, offset).color(color).normal(entry, (float)rotationVec.x, (float)rotationVec.y, (float)rotationVec.z);
         lines.vertex(entry, (float)(offset.x() + rotationVec.x), (float)(offset.y() + rotationVec.y), (float)(offset.z() + rotationVec.z))
                 .color(color)

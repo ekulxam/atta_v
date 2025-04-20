@@ -24,16 +24,16 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import survivalblock.atmosphere.atta_v.common.entity.paths.EntityPath;
-import survivalblock.atmosphere.atta_v.common.entity.paths.EntityPathComponent;
 import survivalblock.atmosphere.atta_v.common.entity.paths.Pathfinder;
 import survivalblock.atmosphere.atta_v.common.entity.paths.WorldPathComponent;
 import survivalblock.atmosphere.atta_v.common.entity.wanderer.WalkingCubeEntity;
 
 import java.util.Collection;
-import java.util.Optional;
 import java.util.function.Consumer;
 
 public final class AttaVCommands {
+
+    public static final int MAX_ITERATIONS = Integer.MAX_VALUE - 3;
 
     public static final SimpleCommandExceptionType NOT_PLAYER_SOURCE = new SimpleCommandExceptionType(Text.translatable("commands.attav.recalibratelegs.notplayersource"));
     public static final SimpleCommandExceptionType INVALID_VEHICLE = new SimpleCommandExceptionType(Text.translatable("commands.attav.recalibratelegs.invalidvehicle"));
@@ -57,16 +57,6 @@ public final class AttaVCommands {
                         .build())
                 .build();
 
-        LiteralCommandNode<ServerCommandSource> dataNode = CommandManager.literal("data")
-                .requires(source -> source.hasPermissionLevel(2))
-                .then(CommandManager.argument("target", EntityArgumentType.entity())
-                        .then(CommandManager.argument("type", StringArgumentType.string())
-                                .then(CommandManager.argument("args", StringArgumentType.string())
-                                        .executes(AttaVCommands::executeData))
-                                .build())
-                        .build())
-                .build();
-
         LiteralCommandNode<ServerCommandSource> findNode = CommandManager.literal("find")
                 .requires(source -> source.hasPermissionLevel(1) || (source.getEntity() instanceof PlayerEntity player && player.isCreative()))
                 .executes(AttaVCommands::executeFind)
@@ -75,7 +65,6 @@ public final class AttaVCommands {
         dispatcher.getRoot().addChild(attaVNode);
 
         attaVNode.addChild(recalibrateLegsNode);
-        attaVNode.addChild(dataNode);
         attaVNode.addChild(findNode);
 
         registerPathCommands(attaVNode);
@@ -100,19 +89,6 @@ public final class AttaVCommands {
             return recalibrateAsOperator(player.getVehicle(), INVALID_VEHICLE, source);
         }
         throw NOT_PLAYER_SOURCE.create();
-    }
-
-    private static int executeData(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
-        ServerCommandSource source = context.getSource();
-        if (!(source.getEntity() instanceof PlayerEntity)) {
-            throw NOT_PLAYER_SOURCE.create();
-        }
-        if (!(EntityArgumentType.getEntity(context, "target") instanceof WalkingCubeEntity walkingCube)) {
-            throw INVALID_ENTITY.create();
-        }
-        // basically invoke data command (I think this is safe, but my only worry is that "type" will somehow be more than one word and still make a valid command, basically lowering /data perms
-        runCommand(source.getWorld(), walkingCube, "/data " + StringArgumentType.getString(context, "type") + " entity @s " + StringArgumentType.getString(context, "args"));
-        return 1;
     }
 
     private static void runCommand(ServerWorld serverWorld, Entity entity, String command) {
@@ -145,7 +121,7 @@ public final class AttaVCommands {
                 blockPos = walkingCube.getBlockPos();
             }
             iterations++;
-            if (iterations >= Integer.MAX_VALUE - 10) {
+            if (iterations >= MAX_ITERATIONS) {
                 break;
             }
         }
@@ -208,6 +184,21 @@ public final class AttaVCommands {
                     idToWorldPathComponent.worldPathComponent.map.remove(id);
                     idToWorldPathComponent.sync();
                     context.getSource().sendFeedback(() -> Text.stringifiedTranslatable("commands.attav.path.remove.success", id), true);
+                    int iterations = 0;
+                    for (Entity entity : context.getSource().getWorld().iterateEntities()) {
+                        iterations++;
+                        if (!(entity instanceof Pathfinder pathfinder)) {
+                            continue;
+                        }
+                        if (id.equals(pathfinder.getPathId())) {
+                            pathfinder.stopFollowingPath();
+                        }
+                        if (iterations >= MAX_ITERATIONS) {
+                            final int finalIterations = iterations;
+                            context.getSource().sendFeedback(() -> Text.stringifiedTranslatable("commands.attav.path.remove.toomanyentities", finalIterations, MAX_ITERATIONS), true);
+                            break;
+                        }
+                    }
                     return 1;
                 })).build();
 
@@ -243,7 +234,7 @@ public final class AttaVCommands {
                             if (!(entity instanceof Pathfinder pathfinder)) {
                                 throw UNSUPPORTED_ENTITY.create(name);
                             }
-                            pathfinder.followPath(null);
+                            pathfinder.stopFollowingPath();
                             context.getSource().sendFeedback(() -> Text.stringifiedTranslatable("commands.attav.path.detach.success", entity), true);
                             return 1;
                         }).build())

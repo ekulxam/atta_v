@@ -15,6 +15,7 @@
   "commands.attav.path.nodes.remove.success": "Successfully removed node with index %1$s from EntityPath %2$s",
   "commands.attav.path.remove.doesnotexist": "An EntityPath with id %1$s does not exist!",
   "commands.attav.path.remove.success": "The EntityPath with id %1$s was removed",
+  "commands.attav.path.remove.toomanyentities": "While trying to remove the path from all Pathfinders, an error occurred : too many iterations (%1$s >= %2$s)",
   "commands.attav.recalibratelegs.invalidentity": "Entity is null or not of type WalkingCubeEntity",
   "commands.attav.recalibratelegs.invalidvehicle": "Vehicle is null or not of type WalkingCubeEntity",
   "commands.attav.recalibratelegs.notplayersource": "The source of the command did not originate from a player",

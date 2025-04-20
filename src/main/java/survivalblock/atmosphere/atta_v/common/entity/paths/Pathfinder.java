@@ -1,5 +1,6 @@
 package survivalblock.atmosphere.atta_v.common.entity.paths;
 
+import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -9,4 +10,13 @@ import org.jetbrains.annotations.Nullable;
 public interface Pathfinder {
 
     void followPath(@Nullable EntityPath path);
+
+    default void stopFollowingPath() {
+        this.followPath(null);
+    }
+
+    boolean isFollowingPath();
+
+    @Nullable
+    Identifier getPathId();
 }

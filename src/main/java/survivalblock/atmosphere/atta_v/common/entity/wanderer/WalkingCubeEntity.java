@@ -13,6 +13,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec2f;
 import net.minecraft.util.math.Vec3d;
@@ -30,6 +31,7 @@ import survivalblock.atmosphere.atta_v.common.init.AttaVGameRules;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
@@ -64,17 +66,14 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
 
     @Override
     public void tick() {
-        if (this.legs.isEmpty()) {
-            this.initLegs();
-        }
+        boolean logicalSide = this.isLogicalSideForUpdatingMovement();
+        World world = this.getWorld();
+        boolean client = world.isClient();
         Vec3d pos = this.getPos();
         if (isPosNull) {
             this.isPosNull = false;
             this.recalibrateLegs();
         }
-        boolean logicalSide = this.isLogicalSideForUpdatingMovement();
-        World world = this.getWorld();
-        boolean client = world.isClient();
         if (logicalSide) {
             this.syncNbt(world, true);
         }
@@ -137,7 +136,7 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
             }
         });
         double x = this.legs.stream().mapToDouble(TripodLeg::getX).average().orElse(this.getX());
-        double y = findMedian(this.legs.stream().map(TripodLeg::getY).sorted(Double::compare).toList()) + BODY_HEIGHT_OFFSET;
+        double y = findMedian(this.legs.stream().map(TripodLeg::getY).sorted(Double::compare).toList()).map(aDouble -> aDouble + BODY_HEIGHT_OFFSET).orElseGet(this::getY);
         double z = this.legs.stream().mapToDouble(TripodLeg::getZ).average().orElse(this.getZ());
         Vec3d updatedPos = new Vec3d(x, y, z);
         if (this.getPos().squaredDistanceTo(updatedPos) > 1.0E-7) {
@@ -192,6 +191,9 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
     }
 
     public void activateLegs() {
+        if (this.legs.isEmpty()) {
+            return;
+        }
         TripodLeg active = this.resetActiveLeg();
         if (active.isOnGround()) {
             final double sizeMultiplier = Math.max(0, Math.log10(this.legs.size())) + 0.6;
@@ -304,18 +306,18 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
     /**
      * The provided list should already be sorted
      */
-    public static double findMedian(List<Double> list) {
+    public static Optional<Double> findMedian(List<Double> list) {
         if (list.isEmpty()) {
-            throw new IllegalStateException("The median of a list is undefined when the list is empty!");
+            return Optional.empty();
         }
         int size = list.size();
         if (size % 2 == 0) {
             // 2, 4, 6, 8
             int sizeDiv2 = size / 2;
-            return (list.get(sizeDiv2) - 1 + list.get(sizeDiv2)) / 2;
+            return Optional.of((list.get(sizeDiv2) - 1 + list.get(sizeDiv2)) / 2);
         }
         // 1, 3, 5, 7
-        return list.get(Math.floorDiv(size, 2));
+        return Optional.of(list.get(Math.floorDiv(size, 2)));
     }
 
     public List<Appendage.PositionColorContainer> getLegPositions(final float tickDelta) {
@@ -343,7 +345,7 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         }
         World world = this.getWorld();
         if (player instanceof ServerPlayerEntity serverPlayer) {
-            if (this.rideable && world.getGameRules().getBoolean(AttaVGameRules.PLAYERS_CAN_RIDE_WANDERERS)) {
+            if (this.rideable && world.getGameRules().getBoolean(AttaVGameRules.PLAYERS_CAN_RIDE_WANDERERS) && !this.isFollowingPath()) {
                 serverPlayer.startRiding(this);
                 ServerPlayNetworking.send(serverPlayer, new RideWandererS2CPayload(this));
             }
@@ -442,6 +444,17 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
     @Override
     public boolean doesRenderOnFire() {
         return false;
+    }
+
+    @Override
+    public boolean isFollowingPath() {
+        return AttaVEntityComponents.ENTITY_PATH.get(this).entityPath != null;
+    }
+
+    @Override
+    public @Nullable Identifier getPathId() {
+        EntityPath path = AttaVEntityComponents.ENTITY_PATH.get(this).entityPath;
+        return path == null ? null : path.id;
     }
 
     public record BoxPosContainer(Box boundingBox, Vec3d pos, Vec3d lerpedPos) {

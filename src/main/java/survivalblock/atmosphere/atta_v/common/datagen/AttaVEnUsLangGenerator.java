@@ -48,6 +48,7 @@ public class AttaVEnUsLangGenerator extends FabricLanguageProvider {
         translationBuilder.add("commands.attav.path.nodes.add.success", "Successfully added node at %1$s with index %2$s to EntityPath %3$s");
         translationBuilder.add("commands.attav.path.nodes.remove.indexoutofbounds", "An error occurred while trying to remove an EntityPath node : %1$s");
         translationBuilder.add("commands.attav.path.nodes.remove.success", "Successfully removed node with index %1$s from EntityPath %2$s");
+        translationBuilder.add("commands.attav.path.remove.toomanyentities", "While trying to remove the path from all Pathfinders, an error occurred : too many iterations (%1$s >= %2$s)");
         translationBuilder.add("commands.attav.path.nodes.get.indexoutofbounds", "An error occurred while trying to get an EntityPath node : %1$s");
         translationBuilder.add("commands.attav.path.nodes.get.success", "Node with index %1$s of EntityPath %2$s has position %3$s");
 
