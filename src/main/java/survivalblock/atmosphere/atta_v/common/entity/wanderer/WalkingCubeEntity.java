@@ -34,6 +34,7 @@ import survivalblock.atmosphere.atta_v.common.networking.TripodLegUpdatePayload;
 import survivalblock.atmosphere.atta_v.common.init.AttaVGameRules;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -202,7 +203,6 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         this.resetActiveLegs();
         boolean next = true;
         for (TripodLeg active : this.activeLegs) {
-            if (!active.isOnGround()) {
                 next = false;
                 break;
             }
@@ -211,12 +211,15 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         if (next) {
             final double sizeMultiplier = Math.max(0, Math.log10(this.legs.size())) + 0.6;
             final float yaw = this.getYaw();
-            Vec3d defaultLegPos = this.getPos().add(fromYaw(yaw).multiply(8));
+            Vec3d destination = this.getPos().add(fromYaw(yaw).multiply(10));
             List<TripodLeg> newActives = new ArrayList<>();
             for (TripodLeg original : this.activeLegs) {
                 TripodLeg leg = this.getNextLeg(original);
                 Vec3d pos = defaultLegPos.add(this.getDesiredOffset(this.legs.indexOf(leg), yaw)).subtract(leg.getPos()).normalize();
                 leg.setVelocity(new Vec3d(pos.x * sizeMultiplier, 1.5, pos.z * sizeMultiplier).multiply(0.92d)); // slightly faster than a sprinting player when it has three legs
+
+                Vec3d direction = destination.add(this.getDesiredOffset(this.legs.indexOf(leg), yaw)).subtract(leg.getPos()).normalize();
+                leg.setVelocity(new Vec3d(direction.x * sizeMultiplier, 1.5, direction.z * sizeMultiplier).multiply(0.92d)); // slightly faster than a sprinting player when it has three legs
                 newActives.add(leg);
             }
             this.activeLegs.clear();
@@ -225,13 +228,10 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
     }
 
     private void resetActiveLegs() {
-        int movingLegs = this.getNumberOfMovingLegs();
         int size = this.legs.size();
-        if (size < movingLegs) {
-            return;
-        }
+        int movingLegs = this.getNumberOfMovingLegs(size);
 
-        if (size <= 0 || size != movingLegs) {
+        if (size > 0 && this.activeLegs.size() != movingLegs) {
             this.activeLegs.clear();
             int mul = (int) Math.floor((float) size / movingLegs);
             for (int i = 1; i <= movingLegs; i++) {
@@ -242,7 +242,7 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
     }
 
     public int getNumberOfMovingLegs(int numberOfLegs) {
-        return (int) Math.floor(numberOfLegs / 2.0F);
+        return Math.max(1, (int) Math.floor((numberOfLegs - 1) / 2.0F));
     }
 
     public Vec3d getDesiredOffset(int index, float yaw) {
@@ -278,7 +278,7 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
     public void readLegDataFromNbt(NbtCompound nbt) {
         RegistryWrapper.WrapperLookup wrapperLookup = this.getRegistryManager();
 
-        int size = nbt.getInt("numberOfLegs");
+        int size = nbt.contains("numberOfLegs") ? nbt.getInt("numberOfLegs") : this.legs.size();
         List<Integer> newActives = new ArrayList<>();
         if (nbt.contains("activeLegs")) {
             INT_LIST_CODEC.parse(wrapperLookup.getOps(NbtOps.INSTANCE), nbt.get("activeLegs"))
@@ -313,7 +313,7 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
             }
         }
 
-        if (!this.legs.isEmpty()) {
+        if (this.activeLegs.isEmpty() && !this.legs.isEmpty()) {
             this.resetActiveLegs();
         }
     }
@@ -443,7 +443,6 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
             this.setRotation(this.prevYaw, this.getPitch());
         }
         this.setYaw(this.getYaw());
-        this.prevYaw = this.getYaw();
     }
 
     public void setInputs(boolean pressingLeft, boolean pressingRight, boolean pressingForward, boolean pressingBack){
