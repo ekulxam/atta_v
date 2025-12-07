@@ -26,7 +26,6 @@ import survivalblock.atmosphere.atta_v.common.entity.wanderer.ClawOfLines;
 import survivalblock.atmosphere.atta_v.common.entity.wanderer.WalkingCubeEntity;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
 public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
@@ -35,7 +34,6 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
 
     protected WandererModel model;
     protected final BlockRenderManager blockRenderManager;
-    protected final AtomicBoolean renderObjects = new AtomicBoolean(false);
 
     protected static final BlockState ANVIL = Blocks.ANVIL.getDefaultState();
     protected static final BlockState TINTED_GLASS  = Blocks.TINTED_GLASS.getDefaultState();
@@ -59,7 +57,6 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
         boolean showBody = this.isVisible(entity);
         boolean translucent = !showBody && !entity.isInvisibleTo(player);
         boolean outline = client.hasOutline(entity);
-        renderObjects.set(false);
         RenderLayer renderLayer = this.getRenderLayer(entity, showBody, translucent, outline);
         if (renderLayer != null) {
             VertexConsumer vertexConsumer = vertexConsumerProvider.getBuffer(renderLayer);
@@ -76,21 +73,19 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
         // unscale MatrixStack BEFORE rendering legs, otherwise you'll be in for a world of (rendering) pain
         VertexConsumer lines = LINES.apply(vertexConsumerProvider);
         Vec3d lerpedPos =  entity.getLerpedPos(tickDelta);
-        final boolean renderObjects = this.renderObjects.get();
         //noinspection CodeBlock2Expr
         entity.getLegPositions(tickDelta).forEach(container -> {
-            renderAppendage(lerpedPos, container, matrixStack, lines, container.color(), vertexConsumerProvider, blockRenderManager, ANVIL, light, renderObjects);
+            renderAppendage(lerpedPos, container, matrixStack, lines, container.color(), vertexConsumerProvider, blockRenderManager, ANVIL, light);
         });
-        renderAppendage(lerpedPos, entity.getClaw(), matrixStack, lines, 0xFF0000FF, vertexConsumerProvider, blockRenderManager, TINTED_GLASS, light, renderObjects);
+        renderAppendage(lerpedPos, entity.getClaw(), matrixStack, lines, 0xFF0000FF, vertexConsumerProvider, blockRenderManager, TINTED_GLASS, light);
         super.render(entity, yaw, tickDelta, matrixStack, vertexConsumerProvider, light);
     }
 
     private void renderForReal(MatrixStack matrixStack, int light, VertexConsumer vertexConsumer, boolean showBody) {
         this.model.render(matrixStack, vertexConsumer, light, OverlayTexture.DEFAULT_UV, showBody ? 654311423 : -1);
-        renderObjects.set(true);
     }
 
-    private static void renderAppendage(Vec3d entityPos, PositionContainer positionContainer, MatrixStack matrixStack, VertexConsumer lines, int color, VertexConsumerProvider vertexConsumerProvider, BlockRenderManager blockRenderManager, BlockState state, int light, boolean renderObjects) {
+    private static void renderAppendage(Vec3d entityPos, PositionContainer positionContainer, MatrixStack matrixStack, VertexConsumer lines, int color, VertexConsumerProvider vertexConsumerProvider, BlockRenderManager blockRenderManager, BlockState state, int light) {
         List<Vec3d> positions = positionContainer.positions();
         Vec3d previous = positions.getFirst();
         Vec3d current;
@@ -103,7 +98,7 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
             } else {
                 render = true;
             }
-            if (renderObjects && render) {
+            if (render) {
                 matrixStack.push();
                 matrixStack.translate(previous.x - entityPos.x, previous.y - entityPos.y, previous.z - entityPos.z);
                 PitchYawPair pair = PitchYawPair.fromVec3ds(current, previous);
