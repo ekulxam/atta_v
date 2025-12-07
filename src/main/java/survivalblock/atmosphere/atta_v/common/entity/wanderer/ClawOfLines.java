@@ -1,5 +1,5 @@
 package survivalblock.atmosphere.atta_v.common.entity.wanderer;
-
+/*
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtOps;
@@ -12,7 +12,7 @@ import survivalblock.atmosphere.atta_v.common.AttaV;
 import survivalblock.atmosphere.atta_v.common.init.AttaVGameRules;
 
 import java.util.List;
-/*
+
 public class ClawOfLines extends Appendage implements PositionContainer {
 
     private @Nullable Vec3d targetPosition = null;
@@ -98,5 +98,5 @@ public class ClawOfLines extends Appendage implements PositionContainer {
     public List<Vec3d> positions() {
         return this.positions;
     }
-}
+}`
  */

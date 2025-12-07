@@ -1,5 +1,6 @@
 package survivalblock.atmosphere.atta_v.common.entity.wanderer;
 
+import com.mojang.serialization.Codec;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.command.argument.EntityAnchorArgumentType;
 import net.minecraft.entity.Entity;
@@ -8,7 +9,9 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.predicate.entity.EntityPredicates;
+import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.ActionResult;
@@ -21,6 +24,7 @@ import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import survivalblock.atmosphere.atmospheric_api.not_mixin.entity.ControlBoarder;
+import survivalblock.atmosphere.atta_v.common.AttaV;
 import survivalblock.atmosphere.atta_v.common.entity.paths.EntityPath;
 import survivalblock.atmosphere.atta_v.common.entity.paths.EntityPathComponent;
 import survivalblock.atmosphere.atta_v.common.entity.paths.Pathfinder;
@@ -32,15 +36,17 @@ import survivalblock.atmosphere.atta_v.common.init.AttaVGameRules;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfinder {
 
     public static final double SQAURED_DISTANCE_THRESHOLD = 45*45;
     public static final int BODY_HEIGHT_OFFSET = 5;
+    public static final Codec<List<Integer>> INT_LIST_CODEC = Codec.INT.listOf();
 
     protected final List<@NotNull TripodLeg> legs = new ArrayList<>();
+    protected final List<@NotNull TripodLeg> activeLegs = new ArrayList<>();
+
     //protected final ClawOfLines claw = new ClawOfLines(this);
 
     private boolean isPosNull;
@@ -49,8 +55,6 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
     private boolean shouldGoBackward;
     private boolean shouldTurnLeft;
     private boolean shouldTurnRight;
-
-    protected final AtomicReference<@Nullable TripodLeg> activeLeg = new AtomicReference<>();
 
     protected @Nullable Vec3d targetPos;
     protected @Nullable PlayerEntity targetPlayer;
@@ -194,27 +198,51 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         if (this.legs.isEmpty()) {
             return;
         }
-        TripodLeg active = this.resetActiveLeg();
-        if (active.isOnGround()) {
+
+        this.resetActiveLegs();
+        boolean next = true;
+        for (TripodLeg active : this.activeLegs) {
+            if (!active.isOnGround()) {
+                next = false;
+                break;
+            }
+        }
+
+        if (next) {
             final double sizeMultiplier = Math.max(0, Math.log10(this.legs.size())) + 0.6;
-            TripodLeg leg = this.getNextLeg(active);
-            this.activeLeg.set(leg);
             final float yaw = this.getYaw();
-            Vec3d newPos = this.getPos().add(fromYaw(yaw).multiply(8));
-            newPos = newPos.add(this.getDesiredOffset(this.legs.indexOf(leg), yaw)).subtract(leg.getPos()).normalize();
-            leg.setVelocity(new Vec3d(newPos.x * sizeMultiplier, 1.5, newPos.z * sizeMultiplier).multiply(0.92d)); // slightly faster than a sprinting player when it has three legs
+            Vec3d defaultLegPos = this.getPos().add(fromYaw(yaw).multiply(8));
+            List<TripodLeg> newActives = new ArrayList<>();
+            for (TripodLeg original : this.activeLegs) {
+                TripodLeg leg = this.getNextLeg(original);
+                Vec3d pos = defaultLegPos.add(this.getDesiredOffset(this.legs.indexOf(leg), yaw)).subtract(leg.getPos()).normalize();
+                leg.setVelocity(new Vec3d(pos.x * sizeMultiplier, 1.5, pos.z * sizeMultiplier).multiply(0.92d)); // slightly faster than a sprinting player when it has three legs
+                newActives.add(leg);
+            }
+            this.activeLegs.clear();
+            this.activeLegs.addAll(newActives);
         }
     }
 
-    @NotNull
-    private TripodLeg resetActiveLeg() {
-        TripodLeg active = this.activeLeg.get();
-        if (active == null) {
-            TripodLeg legOne = this.legs.getFirst();
-            this.activeLeg.set(legOne);
-            active = legOne;
+    private void resetActiveLegs() {
+        int movingLegs = this.getNumberOfMovingLegs();
+        int size = this.legs.size();
+        if (size < movingLegs) {
+            return;
         }
-        return active;
+
+        if (size <= 0 || size != movingLegs) {
+            this.activeLegs.clear();
+            int mul = (int) Math.floor((float) size / movingLegs);
+            for (int i = 1; i <= movingLegs; i++) {
+                TripodLeg leg = this.legs.get(mul * i - 1);
+                this.activeLegs.add(leg);
+            }
+        }
+    }
+
+    public int getNumberOfMovingLegs(int numberOfLegs) {
+        return (int) Math.floor(numberOfLegs / 2.0F);
     }
 
     public Vec3d getDesiredOffset(int index, float yaw) {
@@ -248,12 +276,16 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
     }
 
     public void readLegDataFromNbt(NbtCompound nbt) {
+        RegistryWrapper.WrapperLookup wrapperLookup = this.getRegistryManager();
+
         int size = nbt.getInt("numberOfLegs");
-        int active = -1;
-        if (nbt.contains("activeLeg")) {
-            active = nbt.getInt("activeLeg");
+        List<Integer> newActives = new ArrayList<>();
+        if (nbt.contains("activeLegs")) {
+            INT_LIST_CODEC.parse(wrapperLookup.getOps(NbtOps.INSTANCE), nbt.get("activeLegs"))
+                    .resultOrPartial(error -> AttaV.LOGGER.error("Tried to load an invalid list of integers: '{}'", error))
+                    .ifPresent(newActives::addAll);
         }
-        this.activeLeg.set(null);
+
         boolean dirty = false;
         while (size < this.legs.size()) {
             this.legs.removeLast();
@@ -263,6 +295,8 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
             this.legs.add(new TripodLeg(this));
             dirty = true;
         }
+
+        this.activeLegs.clear();
         Vec3d pos = this.getPos();
         final float yaw = this.getYaw();
         for (int i = 0; i < size; i++) {
@@ -271,15 +305,16 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
             if (nbt.contains(key)) {
                 leg.readNbt(nbt.getCompound(key));
             }
-            if (i == active) {
-                this.activeLeg.set(leg);
+            if (newActives.contains(i)) {
+                this.activeLegs.add(leg);
             }
             if (dirty) {
                 this.recalibrateLeg(leg, i, pos, yaw);
             }
         }
-        if (this.activeLeg.get() == null && !this.legs.isEmpty()) {
-            this.resetActiveLeg();
+
+        if (!this.legs.isEmpty()) {
+            this.resetActiveLegs();
         }
     }
 
@@ -291,12 +326,19 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
     }
 
     protected void writeLegDataToNbt(NbtCompound nbt) {
+        RegistryWrapper.WrapperLookup wrapperLookup = this.getRegistryManager();
         int size = this.legs.size();
         nbt.putInt("numberOfLegs", size);
-        TripodLeg active = activeLeg.get();
-        if (active != null) {
-            nbt.putInt("activeLeg", this.legs.indexOf(active));
+        if (!this.activeLegs.isEmpty()) {
+            nbt.put("activeLegs", INT_LIST_CODEC
+                    .encodeStart(
+                            wrapperLookup.getOps(NbtOps.INSTANCE),
+                            this.activeLegs.stream().map(this.legs::indexOf).toList()
+                    )
+                    .getOrThrow()
+            );
         }
+
         for (int i = 0; i < size; i++) {
             TripodLeg leg = this.legs.get(i);
             nbt.put("leg" + i, leg.writeNbt(new NbtCompound()));
@@ -320,8 +362,16 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         return Optional.of(list.get(Math.floorDiv(size, 2)));
     }
 
+    @SuppressWarnings("CodeBlock2Expr")
     public List<Appendage.PositionColorContainer> getLegPositions(final float tickDelta) {
-        return this.legs.stream().map(leg -> new Appendage.PositionColorContainer(leg.getPositions(tickDelta), leg == this.activeLeg.get() ? 0xFFFF0000 : 0xFF000000)).toList();
+        return this.legs.stream()
+                .map(leg -> {
+                    return new Appendage.PositionColorContainer(
+                            leg.getPositions(tickDelta),
+                            this.activeLegs.contains(leg) ? 0xFFFF0000 : 0xFF000000
+                    );
+                })
+                .toList();
     }
 
     @Override
@@ -422,7 +472,7 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         this.legs.add(new TripodLeg(this));
         this.legs.add(new TripodLeg(this));
         this.legs.add(new TripodLeg(this));
-        this.resetActiveLeg();
+        this.resetActiveLegs();
     }
 
     public Stream<BoxPosContainer> getLegBoundingBoxes(float tickDelta) {
