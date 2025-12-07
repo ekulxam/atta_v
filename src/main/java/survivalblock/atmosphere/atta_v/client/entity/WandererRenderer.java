@@ -14,15 +14,15 @@ import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
+import survivalblock.atmosphere.atmospheric_api.not_mixin.entity.PositionContainer;
+import survivalblock.atmosphere.atmospheric_api.not_mixin.util.PitchYawPair;
 import survivalblock.atmosphere.atta_v.client.AttaVClient;
 import survivalblock.atmosphere.atta_v.common.AttaV;
 import survivalblock.atmosphere.atta_v.common.entity.wanderer.ClawOfLines;
-import survivalblock.atmosphere.atta_v.common.entity.wanderer.PositionContainer;
 import survivalblock.atmosphere.atta_v.common.entity.wanderer.WalkingCubeEntity;
 
 import java.util.List;
@@ -77,6 +77,7 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
         VertexConsumer lines = LINES.apply(vertexConsumerProvider);
         Vec3d lerpedPos =  entity.getLerpedPos(tickDelta);
         final boolean renderObjects = this.renderObjects.get();
+        //noinspection CodeBlock2Expr
         entity.getLegPositions(tickDelta).forEach(container -> {
             renderAppendage(lerpedPos, container, matrixStack, lines, container.color(), vertexConsumerProvider, blockRenderManager, ANVIL, light, renderObjects);
         });
@@ -105,9 +106,9 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
             if (renderObjects && render) {
                 matrixStack.push();
                 matrixStack.translate(previous.x - entityPos.x, previous.y - entityPos.y, previous.z - entityPos.z);
-                PitchYawPair pair = blockLookAt(current, previous);
-                matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F - pair.yaw));
-                matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(- pair.pitch));
+                PitchYawPair pair = PitchYawPair.fromVec3ds(current, previous);
+                matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F - pair.yaw()));
+                matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(- pair.pitch()));
                 matrixStack.translate(-0.5f, -0.5f, -0.5f);
                 blockRenderManager.renderBlockAsEntity(state, matrixStack, vertexConsumerProvider, light, OverlayTexture.DEFAULT_UV);
                 matrixStack.pop();
@@ -158,19 +159,5 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
     @Override
     public boolean shouldRender(WalkingCubeEntity entity, Frustum frustum, double x, double y, double z) {
         return true;
-    }
-
-    public static PitchYawPair blockLookAt(Vec3d vec3d, Vec3d target) {
-        double d = target.x - vec3d.x;
-        double e = target.y - vec3d.y;
-        double f = target.z - vec3d.z;
-        double g = Math.sqrt(d * d + f * f);
-        float pitch = MathHelper.wrapDegrees((float)(-(MathHelper.atan2(e, g) * 180.0F / (float)Math.PI)));
-        float yaw = MathHelper.wrapDegrees((float)(MathHelper.atan2(f, d) * 180.0F / (float)Math.PI) - 90.0F);
-        return new PitchYawPair(pitch, yaw);
-    }
-
-    public record PitchYawPair(float pitch, float yaw) {
-
     }
 }

@@ -1,6 +1,7 @@
 package survivalblock.atmosphere.atta_v.common.networking;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.RegistryByteBuf;
@@ -8,7 +9,6 @@ import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
 import org.jetbrains.annotations.Nullable;
 import survivalblock.atmosphere.atta_v.common.AttaV;
 import survivalblock.atmosphere.atta_v.common.entity.wanderer.WalkingCubeEntity;
@@ -26,11 +26,13 @@ public record TripodLegUpdatePayload(int entityId, NbtCompound nbt) implements C
         return ID;
     }
 
-    public void sendS2C(ServerWorld serverWorld, WalkingCubeEntity walkingCube, @Nullable ServerPlayerEntity except) {
-        serverWorld.getPlayers().forEach(serverPlayer -> {
-            if (!serverPlayer.equals(except) && Math.ceil(serverPlayer.distanceTo(walkingCube)) <= (walkingCube.getType().getMaxTrackDistance() * 16)) {
-                ServerPlayNetworking.send(serverPlayer, this);
+    public void sendS2C(WalkingCubeEntity walkingCube, @Nullable ServerPlayerEntity except) {
+        PlayerLookup.tracking(walkingCube).forEach(serverPlayer -> {
+            if (serverPlayer.equals(except)) {
+                return;
             }
+
+            ServerPlayNetworking.send(serverPlayer, this);
         });
     }
 

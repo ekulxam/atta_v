@@ -5,6 +5,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.random.Random;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import survivalblock.atmosphere.atmospheric_api.not_mixin.entity.PositionContainer;
 
 import java.util.ArrayList;
 import java.util.List;

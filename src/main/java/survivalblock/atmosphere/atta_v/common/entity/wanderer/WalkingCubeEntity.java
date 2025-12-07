@@ -20,7 +20,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import survivalblock.atmosphere.atta_v.common.entity.ControlBoarder;
+import survivalblock.atmosphere.atmospheric_api.not_mixin.entity.ControlBoarder;
 import survivalblock.atmosphere.atta_v.common.entity.paths.EntityPath;
 import survivalblock.atmosphere.atta_v.common.entity.paths.EntityPathComponent;
 import survivalblock.atmosphere.atta_v.common.entity.paths.Pathfinder;
@@ -178,8 +178,8 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         NbtCompound nbt = new NbtCompound();
         this.writeLegDataToNbt(nbt);
         TripodLegUpdatePayload payload = new TripodLegUpdatePayload(this.getId(), nbt);
-        if (world instanceof ServerWorld serverWorld) {
-            payload.sendS2C(serverWorld, this, null);
+        if (world instanceof ServerWorld) {
+            payload.sendS2C(this, null);
         } else if (syncClient) {
             payload.sendC2S();
         }

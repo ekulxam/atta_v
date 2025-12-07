@@ -6,7 +6,6 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityModelLayerRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
-import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.WorldRenderer;
@@ -17,8 +16,6 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.Vec3d;
-import org.joml.Matrix4f;
-import org.joml.Vector3f;
 import survivalblock.atmosphere.atta_v.client.entity.WandererModel;
 import survivalblock.atmosphere.atta_v.client.entity.WandererRenderer;
 import survivalblock.atmosphere.atta_v.common.AttaV;
@@ -30,13 +27,11 @@ import survivalblock.atmosphere.atta_v.common.networking.TripodLegUpdatePayload;
 import survivalblock.atmosphere.atta_v.common.entity.wanderer.WalkingCubeEntity;
 import survivalblock.atmosphere.atta_v.common.init.AttaVEntityTypes;
 
-import java.util.List;
-
-
 public class AttaVClient implements ClientModInitializer {
 
+    public static final EntityModelLayer WANDERER = new EntityModelLayer(AttaV.id("wanderer"), "main");
+
 	public static boolean showEntityPaths = false;
-	public static final EntityModelLayer WANDERER = new EntityModelLayer(AttaV.id("wanderer"), "main");
 
 	@Override
 	public void onInitializeClient() {

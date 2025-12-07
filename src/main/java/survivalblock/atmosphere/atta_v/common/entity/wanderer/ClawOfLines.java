@@ -7,6 +7,7 @@ import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
+import survivalblock.atmosphere.atmospheric_api.not_mixin.entity.PositionContainer;
 import survivalblock.atmosphere.atta_v.common.AttaV;
 import survivalblock.atmosphere.atta_v.common.init.AttaVGameRules;
 

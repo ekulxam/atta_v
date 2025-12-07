@@ -40,7 +40,7 @@ public class AttaV implements ModInitializer {
 			Entity entity = serverWorld.getEntityById(payload.entityId());
 			if (entity instanceof WalkingCubeEntity walkingCube && player.equals(walkingCube.getControllingPassenger())) {
 				walkingCube.readLegDataFromNbt(payload.nbt());
-				payload.sendS2C(serverWorld, walkingCube, player);
+				payload.sendS2C(walkingCube, player);
 			}
 		});
 
