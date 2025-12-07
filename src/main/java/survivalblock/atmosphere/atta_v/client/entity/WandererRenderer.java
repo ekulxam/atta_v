@@ -22,7 +22,6 @@ import survivalblock.atmosphere.atmospheric_api.not_mixin.entity.PositionContain
 import survivalblock.atmosphere.atmospheric_api.not_mixin.util.PitchYawPair;
 import survivalblock.atmosphere.atta_v.client.AttaVClient;
 import survivalblock.atmosphere.atta_v.common.AttaV;
-import survivalblock.atmosphere.atta_v.common.entity.wanderer.ClawOfLines;
 import survivalblock.atmosphere.atta_v.common.entity.wanderer.WalkingCubeEntity;
 
 import java.util.List;
@@ -36,7 +35,6 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
     protected final BlockRenderManager blockRenderManager;
 
     protected static final BlockState ANVIL = Blocks.ANVIL.getDefaultState();
-    protected static final BlockState TINTED_GLASS  = Blocks.TINTED_GLASS.getDefaultState();
 
     public WandererRenderer(EntityRendererFactory.Context context, WandererModel model) {
         super(context);
@@ -77,7 +75,6 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
         entity.getLegPositions(tickDelta).forEach(container -> {
             renderAppendage(lerpedPos, container, matrixStack, lines, container.color(), vertexConsumerProvider, blockRenderManager, ANVIL, light);
         });
-        renderAppendage(lerpedPos, entity.getClaw(), matrixStack, lines, 0xFF0000FF, vertexConsumerProvider, blockRenderManager, TINTED_GLASS, light);
         super.render(entity, yaw, tickDelta, matrixStack, vertexConsumerProvider, light);
     }
 
@@ -85,6 +82,7 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
         this.model.render(matrixStack, vertexConsumer, light, OverlayTexture.DEFAULT_UV, showBody ? 654311423 : -1);
     }
 
+    @SuppressWarnings("SameParameterValue")
     private static void renderAppendage(Vec3d entityPos, PositionContainer positionContainer, MatrixStack matrixStack, VertexConsumer lines, int color, VertexConsumerProvider vertexConsumerProvider, BlockRenderManager blockRenderManager, BlockState state, int light) {
         List<Vec3d> positions = positionContainer.positions();
         Vec3d previous = positions.getFirst();
@@ -92,22 +90,16 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
         for (int i = 1; i < positions.size(); i++) {
             current = positions.get(i);
             drawLine(entityPos, current, previous, matrixStack, lines, color);
-            boolean render = positionContainer instanceof ClawOfLines;
-            if (render) {
-                render = i % 3 == 0;
-            } else {
-                render = true;
-            }
-            if (render) {
-                matrixStack.push();
-                matrixStack.translate(previous.x - entityPos.x, previous.y - entityPos.y, previous.z - entityPos.z);
-                PitchYawPair pair = PitchYawPair.fromVec3ds(current, previous);
-                matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F - pair.yaw()));
-                matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(- pair.pitch()));
-                matrixStack.translate(-0.5f, -0.5f, -0.5f);
-                blockRenderManager.renderBlockAsEntity(state, matrixStack, vertexConsumerProvider, light, OverlayTexture.DEFAULT_UV);
-                matrixStack.pop();
-            }
+
+            matrixStack.push();
+            matrixStack.translate(previous.x - entityPos.x, previous.y - entityPos.y, previous.z - entityPos.z);
+            PitchYawPair pair = PitchYawPair.fromVec3ds(current, previous);
+            matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F - pair.yaw()));
+            matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(- pair.pitch()));
+            matrixStack.translate(-0.5f, -0.5f, -0.5f);
+            blockRenderManager.renderBlockAsEntity(state, matrixStack, vertexConsumerProvider, light, OverlayTexture.DEFAULT_UV);
+            matrixStack.pop();
+
             previous = current;
         }
     }

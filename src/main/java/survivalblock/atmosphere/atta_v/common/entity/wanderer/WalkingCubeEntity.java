@@ -41,7 +41,7 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
     public static final int BODY_HEIGHT_OFFSET = 5;
 
     protected final List<@NotNull TripodLeg> legs = new ArrayList<>();
-    protected final ClawOfLines claw = new ClawOfLines(this);
+    //protected final ClawOfLines claw = new ClawOfLines(this);
 
     private boolean isPosNull;
 
@@ -145,7 +145,7 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
                 this.updateTrackedPosition(this.getX(), this.getY(), this.getZ());
             }
         }
-        this.claw.tick();
+        //this.claw.tick();
     }
 
     @SuppressWarnings({"RedundantMethodOverride", "RedundantSuppression"})
@@ -239,9 +239,9 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
     @Override
     protected void readCustomDataFromNbt(NbtCompound nbt) {
         this.readLegDataFromNbt(nbt);
-        if (nbt.contains("clawData")) {
+        /*if (nbt.contains("clawData")) {
             this.claw.readNbt(nbt.getCompound("clawData"));
-        }
+        }*/
         if (nbt.contains("rideable")) {
             this.rideable = nbt.getBoolean("rideable");
         }
@@ -286,7 +286,7 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
     @Override
     protected void writeCustomDataToNbt(NbtCompound nbt) {
         this.writeLegDataToNbt(nbt);
-        nbt.put("clawData", this.claw.writeNbt(new NbtCompound()));
+        //nbt.put("clawData", this.claw.writeNbt(new NbtCompound()));
         nbt.putBoolean("rideable", this.rideable);
     }
 
@@ -429,9 +429,9 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         return this.legs.stream().map(leg -> new BoxPosContainer(leg.getBoundingBox(), leg.getPos(), leg.getLerpedPos(tickDelta)));
     }
 
-    public ClawOfLines getClaw() {
+    /*public ClawOfLines getClaw() {
         return this.claw;
-    }
+    }*/
 
     @Override
     public void followPath(@Nullable EntityPath entityPath) {

@@ -12,7 +12,7 @@ import survivalblock.atmosphere.atta_v.common.AttaV;
 import survivalblock.atmosphere.atta_v.common.init.AttaVGameRules;
 
 import java.util.List;
-
+/*
 public class ClawOfLines extends Appendage implements PositionContainer {
 
     private @Nullable Vec3d targetPosition = null;
@@ -99,3 +99,4 @@ public class ClawOfLines extends Appendage implements PositionContainer {
         return this.positions;
     }
 }
+ */
