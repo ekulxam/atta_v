@@ -82,11 +82,13 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         if (logicalSide) {
             this.syncNbt(world, true);
         }
+
         super.tick();
         LivingEntity controllingPassenger = this.getControllingPassenger();
         EntityPathComponent entityPathComponent = AttaVEntityComponents.ENTITY_PATH.get(this);
         this.targetPos = null;
         this.targetPlayer = null;
+
         if (controllingPassenger != null) {
             this.tickRotation(getControlledRotation(controllingPassenger));
             if (logicalSide && (this.shouldAccelerateForward || this.shouldGoBackward || this.shouldTurnRight || this.shouldTurnLeft)) {
@@ -134,12 +136,14 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
                 }
             }
         }
+
         this.legs.forEach(tripodLeg -> {
             tripodLeg.tick();
             if (tripodLeg.getPos().squaredDistanceTo(pos) > SQAURED_DISTANCE_THRESHOLD) {
                 this.recalibrateLeg(tripodLeg, this.legs.indexOf(tripodLeg), pos, this.getYaw());
             }
         });
+
         double x = this.legs.stream().mapToDouble(TripodLeg::getX).average().orElse(this.getX());
         double y = findMedian(this.legs.stream().map(TripodLeg::getY).sorted(Double::compare).toList()).map(aDouble -> aDouble + BODY_HEIGHT_OFFSET).orElseGet(this::getY);
         double z = this.legs.stream().mapToDouble(TripodLeg::getZ).average().orElse(this.getZ());
@@ -202,7 +206,8 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
 
         this.resetActiveLegs();
         boolean next = true;
-        for (TripodLeg active : this.activeLegs) {
+        for (TripodLeg leg : this.activeLegs) {
+            if (!leg.isOnGround()) {
                 next = false;
                 break;
             }
@@ -215,8 +220,6 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
             List<TripodLeg> newActives = new ArrayList<>();
             for (TripodLeg original : this.activeLegs) {
                 TripodLeg leg = this.getNextLeg(original);
-                Vec3d pos = defaultLegPos.add(this.getDesiredOffset(this.legs.indexOf(leg), yaw)).subtract(leg.getPos()).normalize();
-                leg.setVelocity(new Vec3d(pos.x * sizeMultiplier, 1.5, pos.z * sizeMultiplier).multiply(0.92d)); // slightly faster than a sprinting player when it has three legs
 
                 Vec3d direction = destination.add(this.getDesiredOffset(this.legs.indexOf(leg), yaw)).subtract(leg.getPos()).normalize();
                 leg.setVelocity(new Vec3d(direction.x * sizeMultiplier, 1.5, direction.z * sizeMultiplier).multiply(0.92d)); // slightly faster than a sprinting player when it has three legs

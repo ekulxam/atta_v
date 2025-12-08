@@ -3,6 +3,7 @@
   "package": "survivalblock.atmosphere.atta_v.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "EntityAccessor",
     "LivingEntityMixin"
   ],
   "injectors": {

@@ -31,23 +31,26 @@ public abstract class Appendage {
     }
 
     protected void resetPositions(List<Vec3d> list) {
-        if (!this.controller.getWorld().isClient() && clientOnly) {
+        if (!this.controller.getWorld().isClient() && this.clientOnly) {
             return;
         }
+
         list.clear();
         Vec3d pos = this.getDesiredRootPosition();
         if (pos == null) {
             return;
         }
+
         for (int i = 0; i < this.segments; i++) {
             list.add(new Vec3d(pos.x, pos.y + this.segmentLength * i, pos.z));
         }
     }
 
     public void tick() {
-        if (!this.controller.getWorld().isClient() && clientOnly) {
+        if (!this.controller.getWorld().isClient() && this.clientOnly) {
             return;
         }
+
         this.prevPositions = new ArrayList<>(this.positions);
         this.resetPositions(this.positions);
         Vec3d targetPosition = this.getDesiredEndPosition();
