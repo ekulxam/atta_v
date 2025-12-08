@@ -14,7 +14,7 @@ public class AttaVDataGenerator implements DataGeneratorEntrypoint {
 		pack.addProvider(AttaVEnUsLangGenerator::new);
 		pack.addProvider(AttaVTagGenerator.AttaVDamageTypeTagGenerator::new);
 		pack.addProvider(AttaVTagGenerator.AttaVEntityTypeTagGenerator::new);
-		pack.addProvider(AttaVDamageTypeGenerator::new);
+		pack.addProvider(AttaVDynamicRegistriesGenerator::new);
 	}
 
 	@Override
