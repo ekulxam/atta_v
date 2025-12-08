@@ -24,7 +24,9 @@ import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import survivalblock.atmosphere.atmospheric_api.not_mixin.entity.ControlBoarder;
+import survivalblock.atmosphere.atmospheric_api.not_mixin.util.PitchYawPair;
 import survivalblock.atmosphere.atta_v.common.AttaV;
+import survivalblock.atmosphere.atta_v.common.entity.Inputs;
 import survivalblock.atmosphere.atta_v.common.entity.paths.EntityPath;
 import survivalblock.atmosphere.atta_v.common.entity.paths.EntityPathComponent;
 import survivalblock.atmosphere.atta_v.common.entity.paths.Pathfinder;
@@ -52,11 +54,7 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
 
     private boolean isPosNull;
 
-    private boolean shouldAccelerateForward;
-    private boolean shouldGoBackward;
-    private boolean shouldTurnLeft;
-    private boolean shouldTurnRight;
-
+    protected final Inputs inputs = new Inputs();
     protected @Nullable Vec3d targetPos;
     protected @Nullable PlayerEntity targetPlayer;
 
@@ -91,7 +89,7 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
 
         if (controllingPassenger != null) {
             this.tickRotation(getControlledRotation(controllingPassenger));
-            if (logicalSide && (this.shouldAccelerateForward || this.shouldGoBackward || this.shouldTurnRight || this.shouldTurnLeft)) {
+            if (logicalSide && this.inputs.shouldMove()) {
                 this.activateLegs();
             }
         } else {
@@ -426,45 +424,11 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
     }
 
     private void tickRotation(Vec2f rotation) {
-        this.setRotation(rotation.y, rotation.x);
-        if (this.shouldTurnRight) {
-            this.addRotation(90.0f, 0);
-            if (this.shouldAccelerateForward) {
-                this.addRotation(-45.0f, 0);
-            }
-            if (this.shouldGoBackward) {
-                this.addRotation(45.0f, 0);
-            }
-        } else if (this.shouldTurnLeft) {
-            this.addRotation(-90.0f, 0);
-            if (this.shouldAccelerateForward) {
-                this.addRotation(45.0f, 0);
-            }
-            if (this.shouldGoBackward) {
-                this.addRotation(-45.0f, 0);
-            }
-        } else if (this.shouldGoBackward) {
-            this.addRotation(180.0f, 0);
-        } else if (!this.shouldAccelerateForward) {
-            this.setRotation(this.prevYaw, this.getPitch());
-        }
-        this.setYaw(this.getYaw());
+        this.inputs.tickRotation(rotation, this::setRotation, this::addRotation, () -> new PitchYawPair(this.getPitch(), this.prevYaw), () -> this.setYaw(this.getYaw()));
     }
 
     public void setInputs(boolean pressingLeft, boolean pressingRight, boolean pressingForward, boolean pressingBack){
-        this.shouldAccelerateForward = pressingForward;
-        if (pressingForward) {
-            this.shouldGoBackward = false;
-        } else {
-            this.shouldGoBackward = pressingBack;
-        }
-        if (pressingLeft && pressingRight) {
-            this.shouldTurnLeft = false;
-            this.shouldTurnRight = false;
-        } else {
-            this.shouldTurnLeft = pressingLeft;
-            this.shouldTurnRight = pressingRight;
-        }
+        this.inputs.setInputs(pressingLeft, pressingRight, pressingForward, pressingBack);
     }
 
     @SuppressWarnings("SameParameterValue")
