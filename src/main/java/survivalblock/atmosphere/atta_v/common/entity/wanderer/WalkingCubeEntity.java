@@ -34,14 +34,14 @@ import survivalblock.atmosphere.atta_v.common.networking.TripodLegUpdatePayload;
 import survivalblock.atmosphere.atta_v.common.init.AttaVGameRules;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
 public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfinder {
 
-    public static final double SQAURED_DISTANCE_THRESHOLD = 45*45;
+    public static final double EPSILON = 1.0E-7;
+    public static final double SQUARED_DISTANCE_THRESHOLD = 45*45;
     public static final int BODY_HEIGHT_OFFSET = 5;
     public static final Codec<List<Integer>> INT_LIST_CODEC = Codec.INT.listOf();
 
@@ -137,9 +137,12 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
             }
         }
 
+        float segmentFactor = Math.max(1, this.legs.size() / 5.0F);
         this.legs.forEach(tripodLeg -> {
+            tripodLeg.setSegments(segmentFactor);
             tripodLeg.tick();
-            if (tripodLeg.getPos().squaredDistanceTo(pos) > SQAURED_DISTANCE_THRESHOLD) {
+            Vec3d difference = tripodLeg.getPos().subtract(pos);
+            if (difference.horizontalLengthSquared() > SQUARED_DISTANCE_THRESHOLD || Math.abs(difference.y) > 20) {
                 this.recalibrateLeg(tripodLeg, this.legs.indexOf(tripodLeg), pos, this.getYaw());
             }
         });
@@ -148,7 +151,7 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         double y = findMedian(this.legs.stream().map(TripodLeg::getY).sorted(Double::compare).toList()).map(aDouble -> aDouble + BODY_HEIGHT_OFFSET).orElseGet(this::getY);
         double z = this.legs.stream().mapToDouble(TripodLeg::getZ).average().orElse(this.getZ());
         Vec3d updatedPos = new Vec3d(x, y, z);
-        if (this.getPos().squaredDistanceTo(updatedPos) > 1.0E-7) {
+        if (this.getPos().squaredDistanceTo(updatedPos) > EPSILON) {
             this.setPosition(updatedPos);
             if (!client || logicalSide) {
                 this.updateTrackedPosition(this.getX(), this.getY(), this.getZ());

@@ -1,9 +1,5 @@
 package survivalblock.atmosphere.atta_v.common.entity.wanderer;
 
-import com.google.common.collect.ImmutableList;
-import it.unimi.dsi.fastutil.floats.FloatArraySet;
-import it.unimi.dsi.fastutil.floats.FloatArrays;
-import it.unimi.dsi.fastutil.floats.FloatSet;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.FenceGateBlock;
@@ -36,7 +32,6 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
-import net.minecraft.world.border.WorldBorder;
 import net.minecraft.world.event.GameEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -49,6 +44,8 @@ import survivalblock.atmosphere.atta_v.mixin.EntityAccessor;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+
+import static survivalblock.atmosphere.atta_v.common.entity.wanderer.WalkingCubeEntity.EPSILON;
 
 // the amalgamation that is entities
 @SuppressWarnings("deprecation")
@@ -100,7 +97,7 @@ public class TripodLeg extends Appendage {
             return;
         }
         Vec3d offset = this.controller.getDesiredOffset(this.controller.legs.indexOf(this), this.controller.getYaw()).normalize();
-        for (int i = 0; i < this.segments; i++) {
+        for (int i = 0; i < this.defaultSegments; i++) {
             list.add(new Vec3d(pos.x + offset.x * xz * i, pos.y + i * 0.2, pos.z + offset.z * xz * i));
         }
     }
@@ -186,7 +183,7 @@ public class TripodLeg extends Appendage {
 
         Vec3d vec3d = this.adjustMovementForCollisions(movement);
         double d = vec3d.lengthSquared();
-        if (d > 1.0E-7) {
+        if (d > EPSILON) {
             if (this.fallDistance != 0.0F && d >= 1.0) {
                 BlockHitResult blockHitResult = this.getWorld()
                         .raycast(
@@ -261,7 +258,7 @@ public class TripodLeg extends Appendage {
     }
 
     protected Vec3d adjustMovementForPiston(Vec3d movement) {
-        if (movement.lengthSquared() <= 1.0E-7) {
+        if (movement.lengthSquared() <= EPSILON) {
             return movement;
         } else {
             long l = this.getWorld().getTime();
@@ -378,8 +375,8 @@ public class TripodLeg extends Appendage {
 
     protected void checkBlockCollision() {
         Box box = this.getBoundingBox();
-        BlockPos blockPos = BlockPos.ofFloored(box.minX + 1.0E-7, box.minY + 1.0E-7, box.minZ + 1.0E-7);
-        BlockPos blockPos2 = BlockPos.ofFloored(box.maxX - 1.0E-7, box.maxY - 1.0E-7, box.maxZ - 1.0E-7);
+        BlockPos blockPos = BlockPos.ofFloored(box.minX + EPSILON, box.minY + EPSILON, box.minZ + EPSILON);
+        BlockPos blockPos2 = BlockPos.ofFloored(box.maxX - EPSILON, box.maxY - EPSILON, box.maxZ - EPSILON);
         if (this.getWorld().isRegionLoaded(blockPos, blockPos2)) {
             BlockPos.Mutable mutable = new BlockPos.Mutable();
 

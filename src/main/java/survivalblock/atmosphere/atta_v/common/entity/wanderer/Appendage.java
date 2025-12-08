@@ -17,17 +17,25 @@ public abstract class Appendage {
     private List<Vec3d> prevPositions = new ArrayList<>();
     protected final @NotNull WalkingCubeEntity controller;
     protected final Random random = Random.create();
-    protected final int segments;
+    protected final int defaultSegments;
     protected final double segmentLength;
     private final boolean clientOnly;
 
-    public Appendage(WalkingCubeEntity controller, final int segments, final double segmentLength, final boolean clientOnly) {
+    protected int segments;
+
+    public Appendage(WalkingCubeEntity controller, final int defaultSegments, final double segmentLength, final boolean clientOnly) {
         this.controller = Objects.requireNonNull(controller);
-        this.segments = segments;
+        this.defaultSegments = defaultSegments;
         this.segmentLength = segmentLength;
         this.clientOnly = clientOnly;
         this.resetPositions(this.positions);
         this.prevPositions = new ArrayList<>(this.positions);
+
+        this.segments = this.defaultSegments;
+    }
+
+    public void setSegments(float factor) {
+        this.segments = (int) Math.floor(this.defaultSegments * factor);
     }
 
     protected void resetPositions(List<Vec3d> list) {
