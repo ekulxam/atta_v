@@ -1,6 +1,5 @@
 package survivalblock.atmosphere.atta_v.common.entity;
 
-import net.minecraft.entity.Entity;
 import net.minecraft.util.math.Vec2f;
 import survivalblock.atmosphere.atmospheric_api.not_mixin.util.PitchYawPair;
 

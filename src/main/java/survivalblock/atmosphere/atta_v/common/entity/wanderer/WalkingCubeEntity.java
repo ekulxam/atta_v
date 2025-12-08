@@ -49,12 +49,11 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
 
     protected final List<@NotNull TripodLeg> legs = new ArrayList<>();
     protected final List<@NotNull TripodLeg> activeLegs = new ArrayList<>();
-
+    
     //protected final ClawOfLines claw = new ClawOfLines(this);
+    protected final Inputs inputs = new Inputs();
 
     private boolean isPosNull;
-
-    protected final Inputs inputs = new Inputs();
     protected @Nullable Vec3d targetPos;
     protected @Nullable PlayerEntity targetPlayer;
 
@@ -88,50 +87,13 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         this.targetPlayer = null;
 
         if (controllingPassenger != null) {
-            this.tickRotation(getControlledRotation(controllingPassenger));
-            if (logicalSide && this.inputs.shouldMove()) {
-                this.activateLegs();
-            }
+            this.tickControlled(controllingPassenger, logicalSide);
         } else {
             this.setInputs();
             if (entityPathComponent.entityPath != null) {
-                List<Vec3d> nodes = entityPathComponent.entityPath.nodes;
-                int size = nodes.size();
-                if (entityPathComponent.nodeIndex < 0 || entityPathComponent.nodeIndex > size - 1) {
-                    entityPathComponent.nodeIndex = 0;
-                }
-                Vec3d target = nodes.get(entityPathComponent.nodeIndex);
-                if (this.targetPos == null) {
-                    this.targetPos = target;
-                }
-                if (target.squaredDistanceTo(this.getPos()) < 56) {
-                    entityPathComponent.nodeIndex = (entityPathComponent.nodeIndex + 1) % size;
-                    if (!client) {
-                        entityPathComponent.sync();
-                    }
-                }
-                this.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, targetPos);
-                if (logicalSide) {
-                    this.activateLegs();
-                }
+                this.tickFollowPath(entityPathComponent, client, logicalSide);
             } else {
-                PlayerEntity player = null;
-                if (world.getGameRules().getBoolean(AttaVGameRules.WANDERER_SEEKS_OUT_PLAYERS)) {
-                    player = world.getClosestPlayer(this.getX(), this.getY(), this.getZ(), 96,
-                            entity -> entity.isAlive() && EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR.test(entity)
-                                    && this != entity.getRootVehicle() && !entity.isTeammate(this));
-                }
-                if (player != null) {
-                    this.targetPlayer = player;
-                    this.targetPos = player.getPos();
-                    this.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, targetPos);
-                    if (logicalSide && player.squaredDistanceTo(this.getEyePos()) > 8) {
-                        this.activateLegs();
-                    }
-                } else {
-                    this.setYaw(0);
-                    this.setPitch(0);
-                }
+                this.tickFollowPlayer(world, logicalSide);
             }
         }
 
@@ -158,10 +120,54 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         //this.claw.tick();
     }
 
-    @SuppressWarnings({"RedundantMethodOverride", "RedundantSuppression"})
-    @Override
-    protected double getGravity() {
-        return 0.0;
+    protected void tickControlled(LivingEntity controllingPassenger, boolean logicalSide) {
+        this.tickRotation(getControlledRotation(controllingPassenger));
+        if (logicalSide && this.inputs.shouldMove()) {
+            this.activateLegs();
+        }
+    }
+
+    protected void tickFollowPath(EntityPathComponent entityPathComponent, boolean client, boolean logicalSide) {
+        //noinspection DataFlowIssue (this should never be null when called)
+        List<Vec3d> nodes = entityPathComponent.entityPath.nodes;
+        int size = nodes.size();
+        if (entityPathComponent.nodeIndex < 0 || entityPathComponent.nodeIndex > size - 1) {
+            entityPathComponent.nodeIndex = 0;
+        }
+        Vec3d target = nodes.get(entityPathComponent.nodeIndex);
+        if (this.targetPos == null) {
+            this.targetPos = target;
+        }
+        if (target.squaredDistanceTo(this.getPos()) < 56) {
+            entityPathComponent.nodeIndex = (entityPathComponent.nodeIndex + 1) % size;
+            if (!client) {
+                entityPathComponent.sync();
+            }
+        }
+        this.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, targetPos);
+        if (logicalSide) {
+            this.activateLegs();
+        }
+    }
+
+    private void tickFollowPlayer(World world, boolean logicalSide) {
+        PlayerEntity player = null;
+        if (world.getGameRules().getBoolean(AttaVGameRules.WANDERER_SEEKS_OUT_PLAYERS)) {
+            player = world.getClosestPlayer(this.getX(), this.getY(), this.getZ(), 96,
+                    entity -> entity.isAlive() && EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR.test(entity)
+                            && this != entity.getRootVehicle() && !entity.isTeammate(this));
+        }
+        if (player != null) {
+            this.targetPlayer = player;
+            this.targetPos = player.getPos();
+            this.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, targetPos);
+            if (logicalSide && player.squaredDistanceTo(this.getEyePos()) > 8) {
+                this.activateLegs();
+            }
+        } else {
+            this.setYaw(0);
+            this.setPitch(0);
+        }
     }
 
     public static Vec3d fromYaw(float yaw) {
@@ -266,6 +272,54 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
     @Override
     protected void initDataTracker(DataTracker.Builder builder) {
 
+    }
+
+    @SuppressWarnings({"RedundantMethodOverride", "RedundantSuppression"})
+    @Override
+    protected double getGravity() {
+        return 0.0;
+    }
+
+    @Override
+    public boolean doesRenderOnFire() {
+        return false;
+    }
+
+    @Override
+    public boolean isCollidable() {
+        return true;
+    }
+
+    @Override
+    public boolean canHit() {
+        return !(this.getControllingPassenger() instanceof PlayerEntity);
+    }
+
+    @Override
+    public ActionResult interact(PlayerEntity player, Hand hand) {
+        if (this.hasPassengers() || this.isRemoved()) {
+            return super.interact(player, hand);
+        }
+        World world = this.getWorld();
+        if (player instanceof ServerPlayerEntity serverPlayer) {
+            if (this.rideable && world.getGameRules().getBoolean(AttaVGameRules.PLAYERS_CAN_RIDE_WANDERERS) && !this.isFollowingPath()) {
+                serverPlayer.startRiding(this);
+                ServerPlayNetworking.send(serverPlayer, new RideWandererS2CPayload(this));
+            }
+        }
+        return ActionResult.success(world.isClient);
+    }
+
+    /**
+     * For implementation purposes, always returns a {@link PlayerEntity} or null
+     * @return {@link #getFirstPassenger()} if it is a {@link PlayerEntity}
+     * @see Entity#getControllingPassenger()
+     */
+    @Nullable
+    @Override
+    public LivingEntity getControllingPassenger() {
+        Entity entity = this.getFirstPassenger();
+        return entity instanceof PlayerEntity player && player.shouldControlVehicles() ? player : null;
     }
 
     @Override
@@ -378,62 +432,26 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
                 .toList();
     }
 
-    @Override
-    public boolean isCollidable() {
-        return true;
-    }
-
     public double getLegGravity() {
         return 0.08;
-    }
-
-    @Override
-    public boolean canHit() {
-        return !(this.getControllingPassenger() instanceof PlayerEntity);
-    }
-
-    @Override
-    public ActionResult interact(PlayerEntity player, Hand hand) {
-        if (this.hasPassengers() || this.isRemoved()) {
-            return super.interact(player, hand);
-        }
-        World world = this.getWorld();
-        if (player instanceof ServerPlayerEntity serverPlayer) {
-            if (this.rideable && world.getGameRules().getBoolean(AttaVGameRules.PLAYERS_CAN_RIDE_WANDERERS) && !this.isFollowingPath()) {
-                serverPlayer.startRiding(this);
-                ServerPlayNetworking.send(serverPlayer, new RideWandererS2CPayload(this));
-            }
-        }
-        return ActionResult.success(world.isClient);
-    }
-
-    /**
-     * For implementation purposes, always returns a {@link PlayerEntity} or null
-     * @return {@link #getFirstPassenger()} if it is a {@link PlayerEntity}
-     * @see Entity#getControllingPassenger()
-     */
-    @Nullable
-    @Override
-    public LivingEntity getControllingPassenger() {
-        Entity entity = this.getFirstPassenger();
-        return entity instanceof PlayerEntity player && player.shouldControlVehicles() ? player : null;
     }
 
     protected Vec2f getControlledRotation(LivingEntity controllingPassenger) {
         return new Vec2f(controllingPassenger.getPitch() * 0.5f, controllingPassenger.getYaw());
     }
 
-    private void tickRotation(Vec2f rotation) {
+    @SuppressWarnings("SameParameterValue")
+    protected final void addRotation(float yaw, float pitch){
+        this.setRotation(this.getYaw() + yaw, this.getPitch() + pitch);
+    }
+
+    protected void tickRotation(Vec2f rotation) {
         this.inputs.tickRotation(rotation, this::setRotation, this::addRotation, () -> new PitchYawPair(this.getPitch(), this.prevYaw), () -> this.setYaw(this.getYaw()));
     }
 
+    @Override
     public void setInputs(boolean pressingLeft, boolean pressingRight, boolean pressingForward, boolean pressingBack){
         this.inputs.setInputs(pressingLeft, pressingRight, pressingForward, pressingBack);
-    }
-
-    @SuppressWarnings("SameParameterValue")
-    private void addRotation(float yaw, float pitch){
-        this.setRotation(this.getYaw() + yaw, this.getPitch() + pitch);
     }
 
     public void initLegs() {
@@ -458,11 +476,6 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         entityPathComponent.entityPath = entityPath;
         entityPathComponent.nodeIndex = -1;
         entityPathComponent.sync();
-    }
-
-    @Override
-    public boolean doesRenderOnFire() {
-        return false;
     }
 
     @Override
