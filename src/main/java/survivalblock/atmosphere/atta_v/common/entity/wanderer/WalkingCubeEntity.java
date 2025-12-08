@@ -157,16 +157,16 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
                     entity -> entity.isAlive() && EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR.test(entity)
                             && this != entity.getRootVehicle() && !entity.isTeammate(this));
         }
-        if (player != null) {
-            this.targetPlayer = player;
-            this.targetPos = player.getPos();
-            this.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, targetPos);
-            if (logicalSide && player.squaredDistanceTo(this.getEyePos()) > 8) {
-                this.activateLegs();
-            }
-        } else {
-            this.setYaw(0);
-            this.setPitch(0);
+
+        if (player == null) {
+            return;
+        }
+
+        this.targetPlayer = player;
+        this.targetPos = player.getPos();
+        this.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, targetPos);
+        if (logicalSide && player.squaredDistanceTo(this.getEyePos()) > 8) {
+            this.activateLegs();
         }
     }
 
@@ -263,6 +263,55 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
     public TripodLeg getNextLeg(TripodLeg leg) {
         return this.legs.get((this.legs.indexOf(leg) + 1) % this.legs.size());
     }
+
+    /**
+     * The provided list should already be sorted
+     */
+    public static Optional<Double> findMedian(List<Double> list) {
+        if (list.isEmpty()) {
+            return Optional.empty();
+        }
+        int size = list.size();
+        if (size % 2 == 0) {
+            // 2, 4, 6, 8
+            int sizeDiv2 = size / 2;
+            return Optional.of((list.get(sizeDiv2) - 1 + list.get(sizeDiv2)) / 2);
+        }
+        // 1, 3, 5, 7
+        return Optional.of(list.get(Math.floorDiv(size, 2)));
+    }
+
+    @SuppressWarnings("CodeBlock2Expr")
+    public List<Appendage.PositionColorContainer> getLegPositions(final float tickDelta) {
+        return this.legs.stream()
+                .map(leg -> {
+                    return new Appendage.PositionColorContainer(
+                            leg.getPositions(tickDelta),
+                            this.activeLegs.contains(leg) ? 0xFFFF0000 : 0xFF000000
+                    );
+                })
+                .toList();
+    }
+
+    public double getLegGravity() {
+        return 0.08;
+    }
+
+    public void initLegs() {
+        // start with three legs
+        this.legs.add(new TripodLeg(this));
+        this.legs.add(new TripodLeg(this));
+        this.legs.add(new TripodLeg(this));
+        this.resetActiveLegs();
+    }
+
+    public Stream<BoxPosContainer> getLegBoundingBoxes(float tickDelta) {
+        return this.legs.stream().map(leg -> new BoxPosContainer(leg.getBoundingBox(), leg.getPos(), leg.getLerpedPos(tickDelta)));
+    }
+
+    /*public ClawOfLines getClaw() {
+        return this.claw;
+    }*/
 
     @Override
     protected boolean canStartRiding(Entity entity) {
@@ -403,39 +452,6 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         }
     }
 
-    /**
-     * The provided list should already be sorted
-     */
-    public static Optional<Double> findMedian(List<Double> list) {
-        if (list.isEmpty()) {
-            return Optional.empty();
-        }
-        int size = list.size();
-        if (size % 2 == 0) {
-            // 2, 4, 6, 8
-            int sizeDiv2 = size / 2;
-            return Optional.of((list.get(sizeDiv2) - 1 + list.get(sizeDiv2)) / 2);
-        }
-        // 1, 3, 5, 7
-        return Optional.of(list.get(Math.floorDiv(size, 2)));
-    }
-
-    @SuppressWarnings("CodeBlock2Expr")
-    public List<Appendage.PositionColorContainer> getLegPositions(final float tickDelta) {
-        return this.legs.stream()
-                .map(leg -> {
-                    return new Appendage.PositionColorContainer(
-                            leg.getPositions(tickDelta),
-                            this.activeLegs.contains(leg) ? 0xFFFF0000 : 0xFF000000
-                    );
-                })
-                .toList();
-    }
-
-    public double getLegGravity() {
-        return 0.08;
-    }
-
     protected Vec2f getControlledRotation(LivingEntity controllingPassenger) {
         return new Vec2f(controllingPassenger.getPitch() * 0.5f, controllingPassenger.getYaw());
     }
@@ -453,22 +469,6 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
     public void setInputs(boolean pressingLeft, boolean pressingRight, boolean pressingForward, boolean pressingBack){
         this.inputs.setInputs(pressingLeft, pressingRight, pressingForward, pressingBack);
     }
-
-    public void initLegs() {
-        // start with three legs
-        this.legs.add(new TripodLeg(this));
-        this.legs.add(new TripodLeg(this));
-        this.legs.add(new TripodLeg(this));
-        this.resetActiveLegs();
-    }
-
-    public Stream<BoxPosContainer> getLegBoundingBoxes(float tickDelta) {
-        return this.legs.stream().map(leg -> new BoxPosContainer(leg.getBoundingBox(), leg.getPos(), leg.getLerpedPos(tickDelta)));
-    }
-
-    /*public ClawOfLines getClaw() {
-        return this.claw;
-    }*/
 
     @Override
     public void followPath(@Nullable EntityPath entityPath) {
