@@ -22,7 +22,6 @@ import survivalblock.atmosphere.atta_v.common.AttaV;
 import survivalblock.atmosphere.atta_v.common.entity.paths.EntityPath;
 import survivalblock.atmosphere.atta_v.common.entity.paths.WorldPathComponent;
 import survivalblock.atmosphere.atta_v.common.init.AttaVWorldComponents;
-import survivalblock.atmosphere.atta_v.common.networking.RideWandererS2CPayload;
 import survivalblock.atmosphere.atta_v.common.networking.TripodLegUpdatePayload;
 import survivalblock.atmosphere.atta_v.common.entity.wanderer.WalkingCubeEntity;
 import survivalblock.atmosphere.atta_v.common.init.AttaVEntityTypes;
@@ -43,14 +42,6 @@ public class AttaVClient implements ClientModInitializer {
 			Entity entity = context.player().getWorld().getEntityById(payload.entityId());
 			if (entity instanceof WalkingCubeEntity walkingCube) {
 				walkingCube.readLegDataFromNbt(payload.nbt());
-			}
-		});
-
-		ClientPlayNetworking.registerGlobalReceiver(RideWandererS2CPayload.ID, (payload, context) -> {
-			PlayerEntity player = context.player();
-			Entity entity = context.player().getWorld().getEntityById(payload.entityId());
-			if (entity instanceof WalkingCubeEntity walkingCube) {
-				player.startRiding(walkingCube);
 			}
 		});
 

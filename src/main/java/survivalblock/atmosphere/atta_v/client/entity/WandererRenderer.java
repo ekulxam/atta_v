@@ -87,18 +87,21 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
         List<Vec3d> positions = positionContainer.positions();
         Vec3d previous = positions.getFirst();
         Vec3d current;
-        for (int i = 1; i < positions.size(); i++) {
+        int size = positions.size();
+        for (int i = 1; i < size; i++) {
             current = positions.get(i);
             drawLine(entityPos, current, previous, matrixStack, lines, color);
 
-            matrixStack.push();
-            matrixStack.translate(previous.x - entityPos.x, previous.y - entityPos.y, previous.z - entityPos.z);
-            PitchYawPair pair = PitchYawPair.fromVec3ds(current, previous);
-            matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F - pair.yaw()));
-            matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(- pair.pitch()));
-            matrixStack.translate(-0.5f, -0.5f, -0.5f);
-            blockRenderManager.renderBlockAsEntity(state, matrixStack, vertexConsumerProvider, light, OverlayTexture.DEFAULT_UV);
-            matrixStack.pop();
+            if (i > 1) {
+                matrixStack.push();
+                matrixStack.translate(previous.x - entityPos.x, previous.y - entityPos.y, previous.z - entityPos.z);
+                PitchYawPair pair = PitchYawPair.fromVec3ds(current, previous);
+                matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F - pair.yaw()));
+                matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(- pair.pitch()));
+                matrixStack.translate(-0.5f, -0.5f, -0.5f);
+                blockRenderManager.renderBlockAsEntity(state, matrixStack, vertexConsumerProvider, light, OverlayTexture.DEFAULT_UV);
+                matrixStack.pop();
+            }
 
             previous = current;
         }

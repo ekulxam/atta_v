@@ -31,7 +31,6 @@ import survivalblock.atmosphere.atta_v.common.entity.paths.EntityPath;
 import survivalblock.atmosphere.atta_v.common.entity.paths.EntityPathComponent;
 import survivalblock.atmosphere.atta_v.common.entity.paths.Pathfinder;
 import survivalblock.atmosphere.atta_v.common.init.AttaVEntityComponents;
-import survivalblock.atmosphere.atta_v.common.networking.RideWandererS2CPayload;
 import survivalblock.atmosphere.atta_v.common.networking.TripodLegUpdatePayload;
 import survivalblock.atmosphere.atta_v.common.init.AttaVGameRules;
 
@@ -366,7 +365,6 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         if (player instanceof ServerPlayerEntity serverPlayer) {
             if (this.rideable && world.getGameRules().getBoolean(AttaVGameRules.PLAYERS_CAN_RIDE_WANDERERS) && !this.isFollowingPath()) {
                 serverPlayer.startRiding(this);
-                ServerPlayNetworking.send(serverPlayer, new RideWandererS2CPayload(this));
             }
         }
         return ActionResult.success(world.isClient);
