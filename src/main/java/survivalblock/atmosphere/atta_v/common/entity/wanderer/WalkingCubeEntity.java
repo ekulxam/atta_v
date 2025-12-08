@@ -127,6 +127,19 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         }
     }
 
+    protected Vec2f getControlledRotation(LivingEntity controllingPassenger) {
+        return new Vec2f(controllingPassenger.getPitch() * 0.5f, controllingPassenger.getYaw());
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    protected final void addRotation(float yaw, float pitch){
+        this.setRotation(this.getYaw() + yaw, this.getPitch() + pitch);
+    }
+
+    protected void tickRotation(Vec2f rotation) {
+        this.inputs.tickRotation(rotation, this::setRotation, this::addRotation, () -> new PitchYawPair(this.getPitch(), this.prevYaw), () -> this.setYaw(this.getYaw()));
+    }
+
     protected void tickFollowPath(EntityPathComponent entityPathComponent, boolean client, boolean logicalSide) {
         //noinspection DataFlowIssue (this should never be null when called)
         List<Vec3d> nodes = entityPathComponent.entityPath.nodes;
@@ -450,19 +463,6 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
             TripodLeg leg = this.legs.get(i);
             nbt.put("leg" + i, leg.writeNbt(new NbtCompound()));
         }
-    }
-
-    protected Vec2f getControlledRotation(LivingEntity controllingPassenger) {
-        return new Vec2f(controllingPassenger.getPitch() * 0.5f, controllingPassenger.getYaw());
-    }
-
-    @SuppressWarnings("SameParameterValue")
-    protected final void addRotation(float yaw, float pitch){
-        this.setRotation(this.getYaw() + yaw, this.getPitch() + pitch);
-    }
-
-    protected void tickRotation(Vec2f rotation) {
-        this.inputs.tickRotation(rotation, this::setRotation, this::addRotation, () -> new PitchYawPair(this.getPitch(), this.prevYaw), () -> this.setYaw(this.getYaw()));
     }
 
     @Override
