@@ -96,12 +96,12 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
             }
         }
 
-        float segmentFactor = Math.max(1, this.legs.size() / 5.0F);
+        float segmentFactor = this.getDistanceFactor();
         this.legs.forEach(tripodLeg -> {
             tripodLeg.setSegments(segmentFactor);
             tripodLeg.tick();
             Vec3d difference = tripodLeg.getPos().subtract(pos);
-            if (difference.horizontalLengthSquared() > SQUARED_DISTANCE_THRESHOLD || Math.abs(difference.y) > 20) {
+            if (difference.horizontalLengthSquared() > SQUARED_DISTANCE_THRESHOLD * segmentFactor || Math.abs(difference.y) > 20) {
                 this.recalibrateLeg(tripodLeg, this.legs.indexOf(tripodLeg), pos, this.getYaw());
             }
         });
@@ -117,6 +117,10 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
             }
         }
         //this.claw.tick();
+    }
+
+    public float getDistanceFactor() {
+        return Math.max(1, this.legs.size() / 5.0F);
     }
 
     protected void tickControlled(LivingEntity controllingPassenger, boolean logicalSide) {

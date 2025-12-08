@@ -87,6 +87,10 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
     @SuppressWarnings("SameParameterValue")
     private static void renderAppendage(Vec3d entityPos, PositionContainer positionContainer, MatrixStack matrixStack, VertexConsumer lines, int color, VertexConsumerProvider vertexConsumerProvider, BlockRenderManager blockRenderManager, BlockState state, int light) {
         List<Vec3d> positions = positionContainer.positions();
+        if (positions.isEmpty()) {
+            return;
+        }
+
         Vec3d previous = positions.getFirst();
         Vec3d current;
         int size = positions.size();

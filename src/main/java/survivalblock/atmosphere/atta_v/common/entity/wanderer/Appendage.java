@@ -76,9 +76,14 @@ public abstract class Appendage {
      */
     public final List<Vec3d> getPositions(final float tickDelta) {
         List<Vec3d> list = new ArrayList<>();
-        for (int i = 0; i < prevPositions.size(); i++) {
-            list.add(prevPositions.get(i).lerp(positions.get(i), tickDelta));
+        for (int i = 0; i < Math.min(this.prevPositions.size(), this.positions.size()); i++) {
+            list.add(this.prevPositions.get(i).lerp(this.positions.get(i), tickDelta));
         }
+
+        if (list.isEmpty()) {
+            return list;
+        }
+
         Vec3d prev;
         Vec3d prev2;
         Vec3d start;
