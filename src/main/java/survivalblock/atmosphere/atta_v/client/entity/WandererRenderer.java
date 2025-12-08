@@ -30,11 +30,13 @@ import java.util.function.Function;
 public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
 
     public static final Function<VertexConsumerProvider, VertexConsumer> LINES = (provider) -> provider.getBuffer(RenderLayer.getLines());
+    public static final Identifier TEXTURE = AttaV.id("textures/entity/wanderer.png");
+
+    protected static final BlockState ANVIL = Blocks.ANVIL.getDefaultState();
+    //protected static final BlockState TINTED_GLASS = Blocks.TINTED_GLASS.getDefaultState();
 
     protected WandererModel model;
     protected final BlockRenderManager blockRenderManager;
-
-    protected static final BlockState ANVIL = Blocks.ANVIL.getDefaultState();
 
     public WandererRenderer(EntityRendererFactory.Context context, WandererModel model) {
         super(context);
@@ -127,7 +129,7 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
 
     @Override
     public Identifier getTexture(WalkingCubeEntity entity) {
-        return AttaV.id("textures/entity/wanderer.png");
+        return TEXTURE;
     }
 
     @Nullable

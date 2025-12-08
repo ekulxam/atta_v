@@ -97,7 +97,7 @@ public class TripodLeg extends Appendage {
             return;
         }
         Vec3d offset = this.controller.getDesiredOffset(this.controller.legs.indexOf(this), this.controller.getYaw()).normalize();
-        for (int i = 0; i < this.defaultSegments; i++) {
+        for (int i = 0; i < this.segments; i++) {
             list.add(new Vec3d(pos.x + offset.x * xz * i, pos.y + i * 0.2, pos.z + offset.z * xz * i));
         }
     }

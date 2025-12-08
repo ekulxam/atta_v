@@ -1,10 +1,8 @@
 package survivalblock.atmosphere.atta_v.common.entity.paths;
 
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtOps;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.ladysnake.cca.api.v3.component.sync.AutoSyncedComponent;
 import survivalblock.atmosphere.atta_v.common.init.AttaVWorldComponents;
