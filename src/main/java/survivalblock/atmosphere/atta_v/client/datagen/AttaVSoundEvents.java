@@ -1,4 +1,4 @@
-package survivalblock.atmosphere.atta_v.common.datagen;
+package survivalblock.atmosphere.atta_v.client.datagen;
 
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;

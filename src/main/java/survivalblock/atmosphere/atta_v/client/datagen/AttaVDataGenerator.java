@@ -1,4 +1,4 @@
-package survivalblock.atmosphere.atta_v.common.datagen;
+package survivalblock.atmosphere.atta_v.client.datagen;
 
 import net.fabricmc.fabric.api.datagen.v1.DataGeneratorEntrypoint;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataGenerator;
@@ -14,7 +14,7 @@ public class AttaVDataGenerator implements DataGeneratorEntrypoint {
 		pack.addProvider(AttaVEnUsLangGenerator::new);
 		pack.addProvider(AttaVTagGenerator.AttaVDamageTypeTagGenerator::new);
 		pack.addProvider(AttaVTagGenerator.AttaVEntityTypeTagGenerator::new);
-		pack.addProvider(AttaVDynamicRegistriesGenerator::new);
+		pack.addProvider(AttaVDamageTypeGenerator::new);
 	}
 
 	@Override

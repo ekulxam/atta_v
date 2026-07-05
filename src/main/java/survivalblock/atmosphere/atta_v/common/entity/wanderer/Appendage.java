@@ -5,7 +5,6 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.random.Random;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import survivalblock.atmosphere.atmospheric_api.not_mixin.entity.PositionContainer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,48 +16,37 @@ public abstract class Appendage {
     private List<Vec3d> prevPositions = new ArrayList<>();
     protected final @NotNull WalkingCubeEntity controller;
     protected final Random random = Random.create();
-    protected final int defaultSegments;
+    protected final int segments;
     protected final double segmentLength;
     private final boolean clientOnly;
 
-    protected int segments;
-
-    public Appendage(WalkingCubeEntity controller, final int defaultSegments, final double segmentLength, final boolean clientOnly) {
+    public Appendage(WalkingCubeEntity controller, final int segments, final double segmentLength, final boolean clientOnly) {
         this.controller = Objects.requireNonNull(controller);
-        this.defaultSegments = defaultSegments;
+        this.segments = segments;
         this.segmentLength = segmentLength;
         this.clientOnly = clientOnly;
         this.resetPositions(this.positions);
         this.prevPositions = new ArrayList<>(this.positions);
-
-        this.segments = this.defaultSegments;
-    }
-
-    public void setSegments(float factor) {
-        this.segments = (int) Math.floor(this.defaultSegments * factor);
     }
 
     protected void resetPositions(List<Vec3d> list) {
-        if (!this.controller.getWorld().isClient() && this.clientOnly) {
+        if (!this.controller.getWorld().isClient() && clientOnly) {
             return;
         }
-
         list.clear();
         Vec3d pos = this.getDesiredRootPosition();
         if (pos == null) {
             return;
         }
-
         for (int i = 0; i < this.segments; i++) {
             list.add(new Vec3d(pos.x, pos.y + this.segmentLength * i, pos.z));
         }
     }
 
     public void tick() {
-        if (!this.controller.getWorld().isClient() && this.clientOnly) {
+        if (!this.controller.getWorld().isClient() && clientOnly) {
             return;
         }
-
         this.prevPositions = new ArrayList<>(this.positions);
         this.resetPositions(this.positions);
         Vec3d targetPosition = this.getDesiredEndPosition();
@@ -76,14 +64,9 @@ public abstract class Appendage {
      */
     public final List<Vec3d> getPositions(final float tickDelta) {
         List<Vec3d> list = new ArrayList<>();
-        for (int i = 0; i < Math.min(this.prevPositions.size(), this.positions.size()); i++) {
-            list.add(this.prevPositions.get(i).lerp(this.positions.get(i), tickDelta));
+        for (int i = 0; i < prevPositions.size(); i++) {
+            list.add(prevPositions.get(i).lerp(positions.get(i), tickDelta));
         }
-
-        if (list.isEmpty()) {
-            return list;
-        }
-
         Vec3d prev;
         Vec3d prev2;
         Vec3d start;

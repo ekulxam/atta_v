@@ -1,4 +1,4 @@
-package survivalblock.atmosphere.atta_v.common.datagen;
+package survivalblock.atmosphere.atta_v.client.datagen;
 
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput;
 import net.fabricmc.fabric.api.datagen.v1.provider.FabricTagProvider;

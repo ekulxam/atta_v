@@ -1,9 +1,8 @@
-package survivalblock.atmosphere.atta_v.common.datagen;
+package survivalblock.atmosphere.atta_v.client.datagen;
 
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput;
 import net.fabricmc.fabric.api.datagen.v1.provider.FabricLanguageProvider;
 import net.minecraft.registry.RegistryWrapper;
-import survivalblock.atmosphere.atta_v.common.init.AttaVDamageTypes;
 import survivalblock.atmosphere.atta_v.common.init.AttaVEntityTypes;
 import survivalblock.atmosphere.atta_v.common.init.AttaVGameRules;
 
@@ -26,7 +25,7 @@ public class AttaVEnUsLangGenerator extends FabricLanguageProvider {
         translationBuilder.add("death.attack.atta_v.wanderer_stomp.item", "%1$s was stomped to death by %2$s using %3$s");
 
         // sounds
-        translationBuilder.add("subtitles." + AttaVSoundEvents.WANDERER_LEG_LAND.getId().toTranslationKey(), "Wanderer Leg Lands");
+        translationBuilder.add("subtitles." + AttaVSoundEvents.WANDERER_LEG_LAND.getId().toTranslationKey(), "Wanderer leg lands");
 
         // commands
         translationBuilder.add("commands.attav.recalibratelegs.invalidvehicle", "Vehicle is null or not of type WalkingCubeEntity");

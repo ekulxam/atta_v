@@ -1,6 +1,5 @@
 package survivalblock.atmosphere.atta_v.common.entity.wanderer;
 
-import com.mojang.serialization.Codec;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.command.argument.EntityAnchorArgumentType;
 import net.minecraft.entity.Entity;
@@ -9,9 +8,7 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtOps;
 import net.minecraft.predicate.entity.EntityPredicates;
-import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.ActionResult;
@@ -23,36 +20,38 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import survivalblock.atmosphere.atmospheric_api.not_mixin.entity.ControlBoarder;
-import survivalblock.atmosphere.atmospheric_api.not_mixin.util.PitchYawPair;
-import survivalblock.atmosphere.atta_v.common.AttaV;
-import survivalblock.atmosphere.atta_v.common.entity.Inputs;
+import survivalblock.atmosphere.atta_v.common.entity.ControlBoarder;
 import survivalblock.atmosphere.atta_v.common.entity.paths.EntityPath;
 import survivalblock.atmosphere.atta_v.common.entity.paths.EntityPathComponent;
 import survivalblock.atmosphere.atta_v.common.entity.paths.Pathfinder;
 import survivalblock.atmosphere.atta_v.common.init.AttaVEntityComponents;
+import survivalblock.atmosphere.atta_v.common.networking.RideWandererS2CPayload;
 import survivalblock.atmosphere.atta_v.common.networking.TripodLegUpdatePayload;
 import survivalblock.atmosphere.atta_v.common.init.AttaVGameRules;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfinder {
 
-    public static final double EPSILON = 1.0E-7;
-    public static final double SQUARED_DISTANCE_THRESHOLD = 45*45;
+    public static final double SQAURED_DISTANCE_THRESHOLD = 45*45;
     public static final int BODY_HEIGHT_OFFSET = 5;
-    public static final Codec<List<Integer>> INT_LIST_CODEC = Codec.INT.listOf();
 
     protected final List<@NotNull TripodLeg> legs = new ArrayList<>();
-    protected final List<@NotNull TripodLeg> activeLegs = new ArrayList<>();
-    
-    //protected final ClawOfLines claw = new ClawOfLines(this);
-    protected final Inputs inputs = new Inputs();
+    protected final ClawOfLines claw = new ClawOfLines(this);
 
     private boolean isPosNull;
+
+    private boolean shouldAccelerateForward;
+    private boolean shouldGoBackward;
+    private boolean shouldTurnLeft;
+    private boolean shouldTurnRight;
+
+    protected final AtomicReference<@Nullable TripodLeg> activeLeg = new AtomicReference<>();
+
     protected @Nullable Vec3d targetPos;
     protected @Nullable PlayerEntity targetPlayer;
 
@@ -78,112 +77,81 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         if (logicalSide) {
             this.syncNbt(world, true);
         }
-
         super.tick();
         LivingEntity controllingPassenger = this.getControllingPassenger();
         EntityPathComponent entityPathComponent = AttaVEntityComponents.ENTITY_PATH.get(this);
         this.targetPos = null;
         this.targetPlayer = null;
-
         if (controllingPassenger != null) {
-            this.tickControlled(controllingPassenger, logicalSide);
+            this.tickRotation(getControlledRotation(controllingPassenger));
+            if (logicalSide && (this.shouldAccelerateForward || this.shouldGoBackward || this.shouldTurnRight || this.shouldTurnLeft)) {
+                this.activateLegs();
+            }
         } else {
             this.setInputs();
             if (entityPathComponent.entityPath != null) {
-                this.tickFollowPath(entityPathComponent, client, logicalSide);
+                List<Vec3d> nodes = entityPathComponent.entityPath.nodes;
+                int size = nodes.size();
+                if (entityPathComponent.nodeIndex < 0 || entityPathComponent.nodeIndex > size - 1) {
+                    entityPathComponent.nodeIndex = 0;
+                }
+                Vec3d target = nodes.get(entityPathComponent.nodeIndex);
+                if (this.targetPos == null) {
+                    this.targetPos = target;
+                }
+                if (target.squaredDistanceTo(this.getPos()) < 56) {
+                    entityPathComponent.nodeIndex = (entityPathComponent.nodeIndex + 1) % size;
+                    if (!client) {
+                        entityPathComponent.sync();
+                    }
+                }
+                this.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, targetPos);
+                if (logicalSide) {
+                    this.activateLegs();
+                }
             } else {
-                this.tickFollowPlayer(world, logicalSide);
+                PlayerEntity player = null;
+                if (world.getGameRules().getBoolean(AttaVGameRules.WANDERER_SEEKS_OUT_PLAYERS)) {
+                    player = world.getClosestPlayer(this.getX(), this.getY(), this.getZ(), 96,
+                            entity -> entity.isAlive() && EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR.test(entity)
+                                    && this != entity.getRootVehicle() && !entity.isTeammate(this));
+                }
+                if (player != null) {
+                    this.targetPlayer = player;
+                    this.targetPos = player.getPos();
+                    this.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, targetPos);
+                    if (logicalSide && player.squaredDistanceTo(this.getEyePos()) > 8) {
+                        this.activateLegs();
+                    }
+                } else {
+                    this.setYaw(0);
+                    this.setPitch(0);
+                }
             }
         }
-
-        float segmentFactor = this.getDistanceFactor();
         this.legs.forEach(tripodLeg -> {
-            tripodLeg.setSegments(segmentFactor);
             tripodLeg.tick();
-            Vec3d difference = tripodLeg.getPos().subtract(pos);
-            if (difference.horizontalLengthSquared() > SQUARED_DISTANCE_THRESHOLD * segmentFactor || Math.abs(difference.y) > 20) {
+            if (tripodLeg.getPos().squaredDistanceTo(pos) > SQAURED_DISTANCE_THRESHOLD) {
                 this.recalibrateLeg(tripodLeg, this.legs.indexOf(tripodLeg), pos, this.getYaw());
             }
         });
-
         double x = this.legs.stream().mapToDouble(TripodLeg::getX).average().orElse(this.getX());
         double y = findMedian(this.legs.stream().map(TripodLeg::getY).sorted(Double::compare).toList()).map(aDouble -> aDouble + BODY_HEIGHT_OFFSET).orElseGet(this::getY);
         double z = this.legs.stream().mapToDouble(TripodLeg::getZ).average().orElse(this.getZ());
         Vec3d updatedPos = new Vec3d(x, y, z);
-        if (this.getPos().squaredDistanceTo(updatedPos) > EPSILON) {
+        if (this.getPos().squaredDistanceTo(updatedPos) > 1.0E-7) {
             this.setPosition(updatedPos);
             if (!client || logicalSide) {
                 this.updateTrackedPosition(this.getX(), this.getY(), this.getZ());
             }
         }
-        //this.claw.tick();
+        this.claw.tick();
     }
 
-    public float getDistanceFactor() {
-        return Math.max(1, this.legs.size() / 5.0F);
-    }
-
-    protected void tickControlled(LivingEntity controllingPassenger, boolean logicalSide) {
-        this.tickRotation(getControlledRotation(controllingPassenger));
-        if (logicalSide && this.inputs.shouldMove()) {
-            this.activateLegs();
-        }
-    }
-
-    protected Vec2f getControlledRotation(LivingEntity controllingPassenger) {
-        return new Vec2f(controllingPassenger.getPitch() * 0.5f, controllingPassenger.getYaw());
-    }
-
-    @SuppressWarnings("SameParameterValue")
-    protected final void addRotation(float yaw, float pitch){
-        this.setRotation(this.getYaw() + yaw, this.getPitch() + pitch);
-    }
-
-    protected void tickRotation(Vec2f rotation) {
-        this.inputs.tickRotation(rotation, this::setRotation, this::addRotation, () -> new PitchYawPair(this.getPitch(), this.prevYaw), () -> this.setYaw(this.getYaw()));
-    }
-
-    protected void tickFollowPath(EntityPathComponent entityPathComponent, boolean client, boolean logicalSide) {
-        //noinspection DataFlowIssue (this should never be null when called)
-        List<Vec3d> nodes = entityPathComponent.entityPath.nodes;
-        int size = nodes.size();
-        if (entityPathComponent.nodeIndex < 0 || entityPathComponent.nodeIndex > size - 1) {
-            entityPathComponent.nodeIndex = 0;
-        }
-        Vec3d target = nodes.get(entityPathComponent.nodeIndex);
-        if (this.targetPos == null) {
-            this.targetPos = target;
-        }
-        if (target.squaredDistanceTo(this.getPos()) < 56) {
-            entityPathComponent.nodeIndex = (entityPathComponent.nodeIndex + 1) % size;
-            if (!client) {
-                entityPathComponent.sync();
-            }
-        }
-        this.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, targetPos);
-        if (logicalSide) {
-            this.activateLegs();
-        }
-    }
-
-    private void tickFollowPlayer(World world, boolean logicalSide) {
-        PlayerEntity player = null;
-        if (world.getGameRules().getBoolean(AttaVGameRules.WANDERER_SEEKS_OUT_PLAYERS)) {
-            player = world.getClosestPlayer(this.getX(), this.getY(), this.getZ(), 96,
-                    entity -> entity.isAlive() && EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR.test(entity)
-                            && this != entity.getRootVehicle() && !entity.isTeammate(this));
-        }
-
-        if (player == null) {
-            return;
-        }
-
-        this.targetPlayer = player;
-        this.targetPos = player.getPos();
-        this.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, targetPos);
-        if (logicalSide && player.squaredDistanceTo(this.getEyePos()) > 8) {
-            this.activateLegs();
-        }
+    @SuppressWarnings({"RedundantMethodOverride", "RedundantSuppression"})
+    @Override
+    protected double getGravity() {
+        return 0.0;
     }
 
     public static Vec3d fromYaw(float yaw) {
@@ -210,8 +178,8 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         NbtCompound nbt = new NbtCompound();
         this.writeLegDataToNbt(nbt);
         TripodLegUpdatePayload payload = new TripodLegUpdatePayload(this.getId(), nbt);
-        if (world instanceof ServerWorld) {
-            payload.sendS2C(this, null);
+        if (world instanceof ServerWorld serverWorld) {
+            payload.sendS2C(serverWorld, this, null);
         } else if (syncClient) {
             payload.sendC2S();
         }
@@ -226,49 +194,27 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         if (this.legs.isEmpty()) {
             return;
         }
-
-        this.resetActiveLegs();
-        boolean next = true;
-        for (TripodLeg leg : this.activeLegs) {
-            if (!leg.isOnGround()) {
-                next = false;
-                break;
-            }
-        }
-
-        if (next) {
+        TripodLeg active = this.resetActiveLeg();
+        if (active.isOnGround()) {
             final double sizeMultiplier = Math.max(0, Math.log10(this.legs.size())) + 0.6;
+            TripodLeg leg = this.getNextLeg(active);
+            this.activeLeg.set(leg);
             final float yaw = this.getYaw();
-            Vec3d destination = this.getPos().add(fromYaw(yaw).multiply(10));
-            List<TripodLeg> newActives = new ArrayList<>();
-            for (TripodLeg original : this.activeLegs) {
-                TripodLeg leg = this.getNextLeg(original);
-
-                Vec3d direction = destination.add(this.getDesiredOffset(this.legs.indexOf(leg), yaw)).subtract(leg.getPos()).normalize();
-                leg.setVelocity(new Vec3d(direction.x * sizeMultiplier, 1.5, direction.z * sizeMultiplier).multiply(0.92d)); // slightly faster than a sprinting player when it has three legs
-                newActives.add(leg);
-            }
-            this.activeLegs.clear();
-            this.activeLegs.addAll(newActives);
+            Vec3d newPos = this.getPos().add(fromYaw(yaw).multiply(8));
+            newPos = newPos.add(this.getDesiredOffset(this.legs.indexOf(leg), yaw)).subtract(leg.getPos()).normalize();
+            leg.setVelocity(new Vec3d(newPos.x * sizeMultiplier, 1.5, newPos.z * sizeMultiplier).multiply(0.92d)); // slightly faster than a sprinting player when it has three legs
         }
     }
 
-    private void resetActiveLegs() {
-        int size = this.legs.size();
-        int movingLegs = this.getNumberOfMovingLegs(size);
-
-        if (size > 0 && this.activeLegs.size() != movingLegs) {
-            this.activeLegs.clear();
-            int mul = (int) Math.floor((float) size / movingLegs);
-            for (int i = 1; i <= movingLegs; i++) {
-                TripodLeg leg = this.legs.get(mul * i - 1);
-                this.activeLegs.add(leg);
-            }
+    @NotNull
+    private TripodLeg resetActiveLeg() {
+        TripodLeg active = this.activeLeg.get();
+        if (active == null) {
+            TripodLeg legOne = this.legs.getFirst();
+            this.activeLeg.set(legOne);
+            active = legOne;
         }
-    }
-
-    public int getNumberOfMovingLegs(int numberOfLegs) {
-        return Math.max(1, (int) Math.floor((numberOfLegs - 1) / 2.0F));
+        return active;
     }
 
     public Vec3d getDesiredOffset(int index, float yaw) {
@@ -278,6 +224,83 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
 
     public TripodLeg getNextLeg(TripodLeg leg) {
         return this.legs.get((this.legs.indexOf(leg) + 1) % this.legs.size());
+    }
+
+    @Override
+    protected boolean canStartRiding(Entity entity) {
+        return false;
+    }
+
+    @Override
+    protected void initDataTracker(DataTracker.Builder builder) {
+
+    }
+
+    @Override
+    protected void readCustomDataFromNbt(NbtCompound nbt) {
+        this.readLegDataFromNbt(nbt);
+        if (nbt.contains("clawData")) {
+            this.claw.readNbt(nbt.getCompound("clawData"));
+        }
+        if (nbt.contains("rideable")) {
+            this.rideable = nbt.getBoolean("rideable");
+        }
+    }
+
+    public void readLegDataFromNbt(NbtCompound nbt) {
+        int size = nbt.getInt("numberOfLegs");
+        int active = -1;
+        if (nbt.contains("activeLeg")) {
+            active = nbt.getInt("activeLeg");
+        }
+        this.activeLeg.set(null);
+        boolean dirty = false;
+        while (size < this.legs.size()) {
+            this.legs.removeLast();
+            dirty = true;
+        }
+        while (size > this.legs.size()) {
+            this.legs.add(new TripodLeg(this));
+            dirty = true;
+        }
+        Vec3d pos = this.getPos();
+        final float yaw = this.getYaw();
+        for (int i = 0; i < size; i++) {
+            TripodLeg leg = this.legs.get(i);
+            String key = "leg" + i;
+            if (nbt.contains(key)) {
+                leg.readNbt(nbt.getCompound(key));
+            }
+            if (i == active) {
+                this.activeLeg.set(leg);
+            }
+            if (dirty) {
+                this.recalibrateLeg(leg, i, pos, yaw);
+            }
+        }
+        if (this.activeLeg.get() == null && !this.legs.isEmpty()) {
+            this.resetActiveLeg();
+        }
+    }
+
+    @Override
+    protected void writeCustomDataToNbt(NbtCompound nbt) {
+        this.writeLegDataToNbt(nbt);
+        nbt.put("clawData", this.claw.writeNbt(new NbtCompound()));
+        nbt.putBoolean("rideable", this.rideable);
+    }
+
+    protected void writeLegDataToNbt(NbtCompound nbt) {
+        int size = this.legs.size();
+        nbt.putInt("numberOfLegs", size);
+        TripodLeg active = activeLeg.get();
+        if (active != null) {
+            nbt.putInt("activeLeg", this.legs.indexOf(active));
+        }
+        for (int i = 0; i < size; i++) {
+            TripodLeg leg = this.legs.get(i);
+            nbt.put("leg" + i, leg.writeNbt(new NbtCompound()));
+        }
     }
 
     /**
@@ -297,62 +320,17 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         return Optional.of(list.get(Math.floorDiv(size, 2)));
     }
 
-    @SuppressWarnings("CodeBlock2Expr")
     public List<Appendage.PositionColorContainer> getLegPositions(final float tickDelta) {
-        return this.legs.stream()
-                .map(leg -> {
-                    return new Appendage.PositionColorContainer(
-                            leg.getPositions(tickDelta),
-                            this.activeLegs.contains(leg) ? 0xFFFF0000 : 0xFF000000
-                    );
-                })
-                .toList();
-    }
-
-    public double getLegGravity() {
-        return 0.08;
-    }
-
-    public void initLegs() {
-        // start with three legs
-        this.legs.add(new TripodLeg(this));
-        this.legs.add(new TripodLeg(this));
-        this.legs.add(new TripodLeg(this));
-        this.resetActiveLegs();
-    }
-
-    public Stream<BoxPosContainer> getLegBoundingBoxes(float tickDelta) {
-        return this.legs.stream().map(leg -> new BoxPosContainer(leg.getBoundingBox(), leg.getPos(), leg.getLerpedPos(tickDelta)));
-    }
-
-    /*public ClawOfLines getClaw() {
-        return this.claw;
-    }*/
-
-    @Override
-    protected boolean canStartRiding(Entity entity) {
-        return false;
-    }
-
-    @Override
-    protected void initDataTracker(DataTracker.Builder builder) {
-
-    }
-
-    @SuppressWarnings({"RedundantMethodOverride", "RedundantSuppression"})
-    @Override
-    protected double getGravity() {
-        return 0.0;
-    }
-
-    @Override
-    public boolean doesRenderOnFire() {
-        return false;
+        return this.legs.stream().map(leg -> new Appendage.PositionColorContainer(leg.getPositions(tickDelta), leg == this.activeLeg.get() ? 0xFFFF0000 : 0xFF000000)).toList();
     }
 
     @Override
     public boolean isCollidable() {
         return true;
+    }
+
+    public double getLegGravity() {
+        return 0.08;
     }
 
     @Override
@@ -369,6 +347,7 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         if (player instanceof ServerPlayerEntity serverPlayer) {
             if (this.rideable && world.getGameRules().getBoolean(AttaVGameRules.PLAYERS_CAN_RIDE_WANDERERS) && !this.isFollowingPath()) {
                 serverPlayer.startRiding(this);
+                ServerPlayNetworking.send(serverPlayer, new RideWandererS2CPayload(this));
             }
         }
         return ActionResult.success(world.isClient);
@@ -386,90 +365,72 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         return entity instanceof PlayerEntity player && player.shouldControlVehicles() ? player : null;
     }
 
-    @Override
-    protected void readCustomDataFromNbt(NbtCompound nbt) {
-        this.readLegDataFromNbt(nbt);
-        /*if (nbt.contains("clawData")) {
-            this.claw.readNbt(nbt.getCompound("clawData"));
-        }*/
-        if (nbt.contains("rideable")) {
-            this.rideable = nbt.getBoolean("rideable");
-        }
+    protected Vec2f getControlledRotation(LivingEntity controllingPassenger) {
+        return new Vec2f(controllingPassenger.getPitch() * 0.5f, controllingPassenger.getYaw());
     }
 
-    public void readLegDataFromNbt(NbtCompound nbt) {
-        RegistryWrapper.WrapperLookup wrapperLookup = this.getRegistryManager();
-
-        int size = nbt.contains("numberOfLegs") ? nbt.getInt("numberOfLegs") : this.legs.size();
-        List<Integer> newActives = new ArrayList<>();
-        if (nbt.contains("activeLegs")) {
-            INT_LIST_CODEC.parse(wrapperLookup.getOps(NbtOps.INSTANCE), nbt.get("activeLegs"))
-                    .resultOrPartial(error -> AttaV.LOGGER.error("Tried to load an invalid list of integers: '{}'", error))
-                    .ifPresent(newActives::addAll);
-        }
-
-        boolean dirty = false;
-        while (size < this.legs.size()) {
-            this.legs.removeLast();
-            dirty = true;
-        }
-        while (size > this.legs.size()) {
-            this.legs.add(new TripodLeg(this));
-            dirty = true;
-        }
-
-        this.activeLegs.clear();
-        Vec3d pos = this.getPos();
-        final float yaw = this.getYaw();
-        for (int i = 0; i < size; i++) {
-            TripodLeg leg = this.legs.get(i);
-            String key = "leg" + i;
-            if (nbt.contains(key)) {
-                leg.readNbt(nbt.getCompound(key));
+    private void tickRotation(Vec2f rotation) {
+        this.setRotation(rotation.y, rotation.x);
+        if (this.shouldTurnRight) {
+            this.addRotation(90.0f, 0);
+            if (this.shouldAccelerateForward) {
+                this.addRotation(-45.0f, 0);
             }
-            if (newActives.contains(i)) {
-                this.activeLegs.add(leg);
+            if (this.shouldGoBackward) {
+                this.addRotation(45.0f, 0);
             }
-            if (dirty) {
-                this.recalibrateLeg(leg, i, pos, yaw);
+        } else if (this.shouldTurnLeft) {
+            this.addRotation(-90.0f, 0);
+            if (this.shouldAccelerateForward) {
+                this.addRotation(45.0f, 0);
             }
+            if (this.shouldGoBackward) {
+                this.addRotation(-45.0f, 0);
+            }
+        } else if (this.shouldGoBackward) {
+            this.addRotation(180.0f, 0);
+        } else if (!this.shouldAccelerateForward) {
+            this.setRotation(this.prevYaw, this.getPitch());
         }
-
-        if (this.activeLegs.isEmpty() && !this.legs.isEmpty()) {
-            this.resetActiveLegs();
-        }
+        this.setYaw(this.getYaw());
+        this.prevYaw = this.getYaw();
     }
 
-    @Override
-    protected void writeCustomDataToNbt(NbtCompound nbt) {
-        this.writeLegDataToNbt(nbt);
-        //nbt.put("clawData", this.claw.writeNbt(new NbtCompound()));
-        nbt.putBoolean("rideable", this.rideable);
-    }
-
-    protected void writeLegDataToNbt(NbtCompound nbt) {
-        RegistryWrapper.WrapperLookup wrapperLookup = this.getRegistryManager();
-        int size = this.legs.size();
-        nbt.putInt("numberOfLegs", size);
-        if (!this.activeLegs.isEmpty()) {
-            nbt.put("activeLegs", INT_LIST_CODEC
-                    .encodeStart(
-                            wrapperLookup.getOps(NbtOps.INSTANCE),
-                            this.activeLegs.stream().map(this.legs::indexOf).toList()
-                    )
-                    .getOrThrow()
-            );
-        }
-
-        for (int i = 0; i < size; i++) {
-            TripodLeg leg = this.legs.get(i);
-            nbt.put("leg" + i, leg.writeNbt(new NbtCompound()));
-        }
-    }
-
-    @Override
     public void setInputs(boolean pressingLeft, boolean pressingRight, boolean pressingForward, boolean pressingBack){
-        this.inputs.setInputs(pressingLeft, pressingRight, pressingForward, pressingBack);
+        this.shouldAccelerateForward = pressingForward;
+        if (pressingForward) {
+            this.shouldGoBackward = false;
+        } else {
+            this.shouldGoBackward = pressingBack;
+        }
+        if (pressingLeft && pressingRight) {
+            this.shouldTurnLeft = false;
+            this.shouldTurnRight = false;
+        } else {
+            this.shouldTurnLeft = pressingLeft;
+            this.shouldTurnRight = pressingRight;
+        }
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private void addRotation(float yaw, float pitch){
+        this.setRotation(this.getYaw() + yaw, this.getPitch() + pitch);
+    }
+
+    public void initLegs() {
+        // start with three legs
+        this.legs.add(new TripodLeg(this));
+        this.legs.add(new TripodLeg(this));
+        this.legs.add(new TripodLeg(this));
+        this.resetActiveLeg();
+    }
+
+    public Stream<BoxPosContainer> getLegBoundingBoxes(float tickDelta) {
+        return this.legs.stream().map(leg -> new BoxPosContainer(leg.getBoundingBox(), leg.getPos(), leg.getLerpedPos(tickDelta)));
+    }
+
+    public ClawOfLines getClaw() {
+        return this.claw;
     }
 
     @Override
@@ -478,6 +439,11 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         entityPathComponent.entityPath = entityPath;
         entityPathComponent.nodeIndex = -1;
         entityPathComponent.sync();
+    }
+
+    @Override
+    public boolean doesRenderOnFire() {
+        return false;
     }
 
     @Override
