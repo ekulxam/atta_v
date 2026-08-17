@@ -205,30 +205,45 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         if (this.legs.isEmpty()) {
             return;
         }
-        for (TripodLeg active : this.resetActiveLegs()) {
-            if (active.isOnGround()) {
-                final double sizeMultiplier = Math.max(0, Math.log10(this.legs.size())) + 0.6;
-                TripodLeg leg = this.getNextLeg(active);
-                final float yaw = this.getYaw();
-                Vec3d newPos = this.getPos().add(fromYaw(yaw).multiply(8));
-                newPos = newPos.add(this.getDesiredOffset(this.legs.indexOf(leg), yaw)).subtract(leg.getPos()).normalize();
-                leg.setVelocity(new Vec3d(newPos.x * sizeMultiplier, 1.5, newPos.z * sizeMultiplier).multiply(0.92d)); // slightly faster than a sprinting player when it has three legs
+
+        this.resetActiveLegs();
+        boolean next = true;
+
+        for (TripodLeg leg : this.activeLegs) {
+            if (!leg.isOnGround()) {
+                next = false;
+                break;
             }
+        }
+
+        if (next) {
+            final double sizeMultiplier = Math.max(0, Math.log10(this.legs.size())) + 0.6;
+            final float yaw = this.getYaw();
+            Vec3d destination = this.getPos().add(fromYaw(yaw).multiply(10));
+            List<TripodLeg> newActives = new ArrayList<>();
+
+            for (TripodLeg original : this.activeLegs) {
+                TripodLeg leg = this.getNextLeg(original);
+                Vec3d direction = destination.add(this.getDesiredOffset(this.legs.indexOf(leg), yaw)).subtract(leg.getPos()).normalize();
+                leg.setVelocity(new Vec3d(direction.x * sizeMultiplier, 1.5, direction.z * sizeMultiplier).multiply(0.92d)); // slightly faster than a sprinting player when it has three legs
+                newActives.add(leg);
+            }
+
+            this.activeLegs.clear();
+            this.activeLegs.addAll(newActives);
         }
     }
 
-    @NotNull
-    private List<TripodLeg> resetActiveLegs() {
+    private void resetActiveLegs() {
         int desiredSize = Math.max(1, Math.ceilDiv(this.legs.size(), 2) - 1);
         if (this.activeLegs.size() == desiredSize) {
-            return this.activeLegs;
+            return;
         }
         this.activeLegs.clear();
         float mul = (float) this.legs.size() / desiredSize;
         for (int i = 0; i < desiredSize; i++) {
             this.activeLegs.add(this.legs.get((int) (mul * i)));
         }
-        return this.activeLegs;
     }
 
     public Vec3d getDesiredOffset(int index, float yaw) {
