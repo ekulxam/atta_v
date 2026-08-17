@@ -16,7 +16,6 @@ import survivalblock.atmosphere.atta_v.common.entity.wanderer.WalkingCubeEntity;
 import survivalblock.atmosphere.atta_v.common.init.AttaVCommands;
 import survivalblock.atmosphere.atta_v.common.init.AttaVEntityTypes;
 import survivalblock.atmosphere.atta_v.common.init.AttaVGameRules;
-import survivalblock.atmosphere.atta_v.common.networking.RideWandererS2CPayload;
 import survivalblock.atmosphere.atta_v.common.networking.TripodLegUpdatePayload;
 
 public class AttaV implements ModInitializer {
@@ -40,11 +39,9 @@ public class AttaV implements ModInitializer {
 			Entity entity = serverWorld.getEntityById(payload.entityId());
 			if (entity instanceof WalkingCubeEntity walkingCube && player.equals(walkingCube.getControllingPassenger())) {
 				walkingCube.readLegDataFromNbt(payload.nbt());
-				payload.sendS2C(serverWorld, walkingCube, player);
+				payload.sendS2C(walkingCube, player);
 			}
 		});
-
-		PayloadTypeRegistry.playS2C().register(RideWandererS2CPayload.ID, RideWandererS2CPayload.PACKET_CODEC);
 
 		CommandRegistrationCallback.EVENT.register(AttaVCommands::register);
 	}

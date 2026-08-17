@@ -19,6 +19,7 @@ import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
+import survivalblock.atmosphere.atmospheric_api.not_mixin.entity.PositionContainer;
 import survivalblock.atmosphere.atmospheric_api.not_mixin.util.PitchYawPair;
 import survivalblock.atmosphere.atta_v.client.AttaVClient;
 import survivalblock.atmosphere.atta_v.common.AttaV;
@@ -79,7 +80,7 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
         Vec3d lerpedPos =  entity.getLerpedPos(tickDelta);
         final boolean renderObjects = this.renderObjects.get();
         entity.getLegPositions(tickDelta).forEach(container -> {
-            renderAppendage(lerpedPos, container, matrixStack, lines, container.color(), vertexConsumerProvider, blockRenderManager, ANVIL, light, renderObjects);
+            renderAppendage(lerpedPos, container, matrixStack, lines, container.color(), vertexConsumerProvider, this.blockRenderManager, ANVIL, light, renderObjects);
         });
         //renderAppendage(lerpedPos, entity.getClaw(), matrixStack, lines, 0xFF0000FF, vertexConsumerProvider, blockRenderManager, TINTED_GLASS, light, renderObjects);
         super.render(entity, yaw, tickDelta, matrixStack, vertexConsumerProvider, light);
@@ -92,6 +93,11 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
 
     private static void renderAppendage(Vec3d entityPos, PositionContainer positionContainer, MatrixStack matrixStack, VertexConsumer lines, int color, VertexConsumerProvider vertexConsumerProvider, BlockRenderManager blockRenderManager, BlockState state, int light, boolean renderObjects) {
         List<Vec3d> positions = positionContainer.positions();
+
+        if (positions.isEmpty()) {
+            return;
+        }
+
         Vec3d previous = positions.getFirst();
         Vec3d current;
         for (int i = 1; i < positions.size(); i++) {

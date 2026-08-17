@@ -6,32 +6,24 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityModelLayerRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
-import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.render.entity.model.EntityModelLayer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.Vec3d;
-import org.joml.Matrix4f;
-import org.joml.Vector3f;
 import survivalblock.atmosphere.atta_v.client.entity.WandererModel;
 import survivalblock.atmosphere.atta_v.client.entity.WandererRenderer;
 import survivalblock.atmosphere.atta_v.common.AttaV;
 import survivalblock.atmosphere.atta_v.common.entity.paths.EntityPath;
 import survivalblock.atmosphere.atta_v.common.entity.paths.WorldPathComponent;
 import survivalblock.atmosphere.atta_v.common.init.AttaVWorldComponents;
-import survivalblock.atmosphere.atta_v.common.networking.RideWandererS2CPayload;
 import survivalblock.atmosphere.atta_v.common.networking.TripodLegUpdatePayload;
 import survivalblock.atmosphere.atta_v.common.entity.wanderer.WalkingCubeEntity;
 import survivalblock.atmosphere.atta_v.common.init.AttaVEntityTypes;
-
-import java.util.List;
-
 
 public class AttaVClient implements ClientModInitializer {
 
@@ -48,14 +40,6 @@ public class AttaVClient implements ClientModInitializer {
 			Entity entity = context.player().getWorld().getEntityById(payload.entityId());
 			if (entity instanceof WalkingCubeEntity walkingCube) {
 				walkingCube.readLegDataFromNbt(payload.nbt());
-			}
-		});
-
-		ClientPlayNetworking.registerGlobalReceiver(RideWandererS2CPayload.ID, (payload, context) -> {
-			PlayerEntity player = context.player();
-			Entity entity = context.player().getWorld().getEntityById(payload.entityId());
-			if (entity instanceof WalkingCubeEntity walkingCube) {
-				player.startRiding(walkingCube);
 			}
 		});
 

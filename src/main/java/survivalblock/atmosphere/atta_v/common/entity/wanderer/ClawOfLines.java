@@ -1,5 +1,7 @@
 package survivalblock.atmosphere.atta_v.common.entity.wanderer;
 
+import survivalblock.atmosphere.atmospheric_api.not_mixin.entity.PositionContainer;
+
 public abstract class ClawOfLines extends Appendage implements PositionContainer {
 
     public ClawOfLines(WalkingCubeEntity controller, int segments, double segmentLength, boolean clientOnly) {

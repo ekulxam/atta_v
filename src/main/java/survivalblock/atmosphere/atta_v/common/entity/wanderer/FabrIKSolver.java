@@ -19,9 +19,9 @@ public final class FabrIKSolver {
      * @param positions The <i>mutable</i> joint positions p<sub>i</sub> for i = 1,...,n. The first position should be the root chain.
      *                  Note that the distance d<sub>i</sub> between each joint is equivalent to |p<sub>i+1</sub> - p<sub>i</sub>| for i = 1,...,n-1.
      * @param t the target position
-     * The positions parameter will have the updated joint positions p<sub>i</sub> for i = 1,...,n.
+     * @return false if the max chain length is greater than the distance to the target. Note that the positions parameter will have the updated joint positions p<sub>i</sub> for i = 1,...,n.
      */
-    public static void solve(List<Vec3d> positions, Vec3d t) {
+    public static boolean solve(List<Vec3d> positions, Vec3d t, boolean returnEarlyIfTooShort) {
         if (positions == null || positions.isEmpty()) {
             throw new IllegalArgumentException("positions cannot be empty!");
         }
@@ -31,6 +31,10 @@ public final class FabrIKSolver {
 
         // if max chain length > root to t distance
         if (sum(distances) < positions.getFirst().distanceTo(t)) {
+            if (returnEarlyIfTooShort) {
+                return false;
+            }
+
             for (int i = 0; i < size - 1; i++) {
                 Vec3d pi = positions.get(i);
                 double ri = t.distanceTo(pi);
@@ -39,7 +43,7 @@ public final class FabrIKSolver {
                         .multiply((1 - lambdai))
                         .add( t.multiply(lambdai) ));
             }
-            return;
+            return false;
         }
 
         final Vec3d b = positions.getFirst();
@@ -73,6 +77,7 @@ public final class FabrIKSolver {
             }
             difA = positions.getLast().distanceTo(t);
         }
+        return true;
     }
 
     private static DoubleList getDistances(List<Vec3d> positions) {

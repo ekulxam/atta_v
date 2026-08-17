@@ -1,6 +1,5 @@
 package survivalblock.atmosphere.atta_v.common.entity.wanderer;
 
-import com.google.common.collect.ImmutableList;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.FenceGateBlock;
@@ -33,7 +32,6 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
-import net.minecraft.world.border.WorldBorder;
 import net.minecraft.world.event.GameEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -41,6 +39,7 @@ import survivalblock.atmosphere.atta_v.common.AttaV;
 import survivalblock.atmosphere.atta_v.client.datagen.AttaVSoundEvents;
 import survivalblock.atmosphere.atta_v.common.init.AttaVDamageTypes;
 import survivalblock.atmosphere.atta_v.common.init.AttaVGameRules;
+import survivalblock.atmosphere.atta_v.mixin.EntityAccessor;
 
 import java.util.Arrays;
 import java.util.List;
@@ -96,7 +95,7 @@ public class TripodLeg extends Appendage {
             return;
         }
         Vec3d offset = this.controller.getDesiredOffset(this.controller.legs.indexOf(this), this.controller.getYaw()).normalize();
-        for (int i = 0; i < this.segments; i++) {
+        for (int i = 0; i < this.defaultSegments; i++) {
             list.add(new Vec3d(pos.x + offset.x * xz * i, pos.y + i * 0.2, pos.z + offset.z * xz * i));
         }
     }
@@ -169,14 +168,12 @@ public class TripodLeg extends Appendage {
 
     @SuppressWarnings("unused")
     public void move(MovementType movementType, Vec3d movement) {
-        /*
         if (movementType == MovementType.PISTON) {
             movement = this.adjustMovementForPiston(movement);
             if (movement.equals(Vec3d.ZERO)) {
                 return;
             }
         }
-         */
 
         this.getWorld().getProfiler().push("move");
 
@@ -292,7 +289,36 @@ public class TripodLeg extends Appendage {
     private Vec3d adjustMovementForCollisions(Vec3d movement) {
         Box box = this.getBoundingBox();
         List<VoxelShape> list = this.getWorld().getEntityCollisions(this.controller, box.stretch(movement));
-        return movement.lengthSquared() == 0.0 ? movement : adjustMovementForCollisions(this, movement, box, this.getWorld(), list);
+        Vec3d vec3d = movement.lengthSquared() == (double)0.0F ? movement : adjustMovementForCollisions(this, movement, box, this.getWorld(), list);
+        boolean bl = movement.x != vec3d.x;
+        boolean bl2 = movement.y != vec3d.y;
+        boolean bl3 = movement.z != vec3d.z;
+        boolean bl4 = bl2 && movement.y < (double)0.0F;
+        if (this.getStepHeight() > 0.0F && (bl4 || this.isOnGround()) && (bl || bl3)) {
+            Box box2 = bl4 ? box.offset(0.0F, vec3d.y, 0.0F) : box;
+            Box box3 = box2.stretch(movement.x, this.getStepHeight(), movement.z);
+            if (!bl4) {
+                box3 = box3.stretch(0.0F, -1.0E-5F, 0.0F);
+            }
+
+            List<VoxelShape> list2 = findCollisionsForMovement(this, this.getWorld(), list, box3);
+            float f = (float)vec3d.y;
+            float[] heights = EntityAccessor.atta_v$invokeCollectStepHeights(box2, list2, this.getStepHeight(), f);
+
+            for(float g : heights) {
+                Vec3d vec3d2 = adjustMovementForCollisions(new Vec3d(movement.x, g, movement.z), box2, list2);
+                if (vec3d2.horizontalLengthSquared() > vec3d.horizontalLengthSquared()) {
+                    double d = box.minY - box2.minY;
+                    return vec3d2.add(0.0F, -d, 0.0F);
+                }
+            }
+        }
+
+        return vec3d;
+    }
+
+    public float getStepHeight() {
+        return 4.0F;
     }
 
     public static Vec3d adjustMovementForCollisions(@NotNull TripodLeg tripod, Vec3d movement, Box entityBoundingBox, World world, List<VoxelShape> collisions) {
@@ -303,18 +329,7 @@ public class TripodLeg extends Appendage {
     private static List<VoxelShape> findCollisionsForMovement(
             @NotNull TripodLeg tripod, World world, List<VoxelShape> regularCollisions, Box movingEntityBoundingBox
     ) {
-        ImmutableList.Builder<VoxelShape> builder = ImmutableList.builderWithExpectedSize(regularCollisions.size() + 1);
-        if (!regularCollisions.isEmpty()) {
-            builder.addAll(regularCollisions);
-        }
-
-        WorldBorder worldBorder = world.getWorldBorder();
-        if (worldBorder.canCollide(tripod.controller, movingEntityBoundingBox)) {
-            builder.add(worldBorder.asVoxelShape());
-        }
-
-        builder.addAll(world.getBlockCollisions(tripod.controller, movingEntityBoundingBox));
-        return builder.build();
+        return EntityAccessor.atta_v$invokeFindCollisionsForMovement(tripod.controller, world, regularCollisions, movingEntityBoundingBox);
     }
 
     private static Vec3d adjustMovementForCollisions(Vec3d movement, Box entityBoundingBox, List<VoxelShape> collisions) {

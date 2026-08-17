@@ -2,7 +2,6 @@ package survivalblock.atmosphere.atta_v.common.entity.wanderer;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.command.argument.EntityAnchorArgumentType;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
@@ -27,7 +26,6 @@ import survivalblock.atmosphere.atta_v.common.entity.paths.EntityPath;
 import survivalblock.atmosphere.atta_v.common.entity.paths.EntityPathComponent;
 import survivalblock.atmosphere.atta_v.common.entity.paths.Pathfinder;
 import survivalblock.atmosphere.atta_v.common.init.AttaVEntityComponents;
-import survivalblock.atmosphere.atta_v.common.networking.RideWandererS2CPayload;
 import survivalblock.atmosphere.atta_v.common.networking.TripodLegUpdatePayload;
 import survivalblock.atmosphere.atta_v.common.init.AttaVGameRules;
 
@@ -90,9 +88,11 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
                 tickFollowPlayer(world, logicalSide);
             }
         }
+        //float segmentFactor = this.getDistanceFactor();
         this.legs.forEach(tripodLeg -> {
             tripodLeg.tick();
-            if (tripodLeg.getPos().squaredDistanceTo(pos) > SQAURED_DISTANCE_THRESHOLD) {
+            Vec3d difference = tripodLeg.getPos().subtract(pos);
+            if (difference.horizontalLengthSquared() > SQAURED_DISTANCE_THRESHOLD /* * segmentFactor*/ || Math.abs(difference.y) > 20) {
                 this.recalibrateLeg(tripodLeg, this.legs.indexOf(tripodLeg), pos, this.getYaw());
             }
         });
@@ -189,9 +189,9 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         NbtCompound nbt = new NbtCompound();
         this.writeLegDataToNbt(nbt);
         TripodLegUpdatePayload payload = new TripodLegUpdatePayload(this.getId(), nbt);
-        if (world instanceof ServerWorld serverWorld) {
-            payload.sendS2C(serverWorld, this, null);
-        } else if (syncClient) {
+        if (world instanceof ServerWorld) {
+            payload.sendS2C(this, null);
+        } else if (world.isClient() && syncClient) {
             payload.sendC2S();
         }
     }
@@ -235,7 +235,7 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
     }
 
     private void resetActiveLegs() {
-        int desiredSize = Math.max(1, Math.ceilDiv(this.legs.size(), 2) - 1);
+        int desiredSize = this.getNumberOfMovingLegs(this.legs.size());
         if (this.activeLegs.size() == desiredSize) {
             return;
         }
@@ -244,6 +244,14 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         for (int i = 0; i < desiredSize; i++) {
             this.activeLegs.add(this.legs.get((int) (mul * i)));
         }
+    }
+
+    /*public float getDistanceFactor() {
+        return Math.max(1.0F, this.legs.size() / 5.0F);
+    }*/
+
+    public int getNumberOfMovingLegs(int numberOfLegs) {
+        return Math.max(1, Math.ceilDiv(numberOfLegs, 2) - 1);
     }
 
     public Vec3d getDesiredOffset(int index, float yaw) {
@@ -375,7 +383,6 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         if (player instanceof ServerPlayerEntity serverPlayer) {
             if (this.rideable && world.getGameRules().getBoolean(AttaVGameRules.PLAYERS_CAN_RIDE_WANDERERS) && !this.isFollowingPath()) {
                 serverPlayer.startRiding(this);
-                ServerPlayNetworking.send(serverPlayer, new RideWandererS2CPayload(this));
             }
         }
         return ActionResult.success(world.isClient);
