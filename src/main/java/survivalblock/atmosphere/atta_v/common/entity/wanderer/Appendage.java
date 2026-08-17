@@ -94,6 +94,5 @@ public abstract class Appendage {
     }
 
     public record PositionColorContainer(List<Vec3d> positions, int color) implements PositionContainer {
-
     }
 }

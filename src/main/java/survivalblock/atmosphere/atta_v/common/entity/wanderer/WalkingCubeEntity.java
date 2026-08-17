@@ -16,13 +16,13 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Vec2f;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.*;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import survivalblock.atmosphere.atmospheric_api.not_mixin.util.PitchYawPair;
 import survivalblock.atmosphere.atta_v.common.entity.ControlBoarder;
+import survivalblock.atmosphere.atta_v.common.entity.Inputs;
 import survivalblock.atmosphere.atta_v.common.entity.paths.EntityPath;
 import survivalblock.atmosphere.atta_v.common.entity.paths.EntityPathComponent;
 import survivalblock.atmosphere.atta_v.common.entity.paths.Pathfinder;
@@ -46,10 +46,7 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
 
     private boolean isPosNull;
 
-    private boolean shouldAccelerateForward;
-    private boolean shouldGoBackward;
-    private boolean shouldTurnLeft;
-    private boolean shouldTurnRight;
+    protected final Inputs inputs = new Inputs();
 
     protected final List<TripodLeg> activeLegs = new ArrayList<>();
 
@@ -84,50 +81,13 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         this.targetPos = null;
         this.targetPlayer = null;
         if (controllingPassenger != null) {
-            this.tickRotation(getControlledRotation(controllingPassenger));
-            if (logicalSide && (this.shouldAccelerateForward || this.shouldGoBackward || this.shouldTurnRight || this.shouldTurnLeft)) {
-                this.activateLegs();
-            }
+            this.tickControlled(controllingPassenger, logicalSide);
         } else {
             this.setInputs();
             if (entityPathComponent.entityPath != null) {
-                List<Vec3d> nodes = entityPathComponent.entityPath.nodes;
-                int size = nodes.size();
-                if (entityPathComponent.nodeIndex < 0 || entityPathComponent.nodeIndex > size - 1) {
-                    entityPathComponent.nodeIndex = 0;
-                }
-                Vec3d target = nodes.get(entityPathComponent.nodeIndex);
-                if (this.targetPos == null) {
-                    this.targetPos = target;
-                }
-                if (target.squaredDistanceTo(this.getPos()) < 56) {
-                    entityPathComponent.nodeIndex = (entityPathComponent.nodeIndex + 1) % size;
-                    if (!client) {
-                        entityPathComponent.sync();
-                    }
-                }
-                this.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, targetPos);
-                if (logicalSide) {
-                    this.activateLegs();
-                }
+                tickFollowPath(entityPathComponent, client, logicalSide);
             } else {
-                PlayerEntity player = null;
-                if (world.getGameRules().getBoolean(AttaVGameRules.WANDERER_SEEKS_OUT_PLAYERS)) {
-                    player = world.getClosestPlayer(this.getX(), this.getY(), this.getZ(), 96,
-                            entity -> entity.isAlive() && EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR.test(entity)
-                                    && this != entity.getRootVehicle() && !entity.isTeammate(this));
-                }
-                if (player != null) {
-                    this.targetPlayer = player;
-                    this.targetPos = player.getPos();
-                    this.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, targetPos);
-                    if (logicalSide && player.squaredDistanceTo(this.getEyePos()) > 8) {
-                        this.activateLegs();
-                    }
-                } else {
-                    this.setYaw(0);
-                    this.setPitch(0);
-                }
+                tickFollowPlayer(world, logicalSide);
             }
         }
         this.legs.forEach(tripodLeg -> {
@@ -147,6 +107,56 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
             }
         }
         //this.claw.tick();
+    }
+
+    private void tickFollowPath(EntityPathComponent entityPathComponent, boolean client, boolean logicalSide) {
+        //noinspection DataFlowIssue
+        List<Vec3d> nodes = entityPathComponent.entityPath.nodes;
+        int size = nodes.size();
+        if (entityPathComponent.nodeIndex < 0 || entityPathComponent.nodeIndex > size - 1) {
+            entityPathComponent.nodeIndex = 0;
+        }
+        Vec3d target = nodes.get(entityPathComponent.nodeIndex);
+        if (this.targetPos == null) {
+            this.targetPos = target;
+        }
+        if (target.squaredDistanceTo(this.getPos()) < 56) {
+            entityPathComponent.nodeIndex = (entityPathComponent.nodeIndex + 1) % size;
+            if (!client) {
+                entityPathComponent.sync();
+            }
+        }
+        this.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, targetPos);
+        if (logicalSide) {
+            this.activateLegs();
+        }
+    }
+
+    private void tickFollowPlayer(World world, boolean logicalSide) {
+        PlayerEntity player = null;
+        if (world.getGameRules().getBoolean(AttaVGameRules.WANDERER_SEEKS_OUT_PLAYERS)) {
+            player = world.getClosestPlayer(this.getX(), this.getY(), this.getZ(), 96,
+                    entity -> entity.isAlive() && EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR.test(entity)
+                            && this != entity.getRootVehicle() && !entity.isTeammate(this));
+        }
+        if (player != null) {
+            this.targetPlayer = player;
+            this.targetPos = player.getPos();
+            this.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, targetPos);
+            if (logicalSide && player.squaredDistanceTo(this.getEyePos()) > 8) {
+                this.activateLegs();
+            }
+        } else {
+            this.setYaw(0);
+            this.setPitch(0);
+        }
+    }
+
+    private void tickControlled(LivingEntity controllingPassenger, boolean logicalSide) {
+        this.tickRotation(getControlledRotation(controllingPassenger));
+        if (logicalSide && this.inputs.shouldMove()) {
+            this.activateLegs();
+        }
     }
 
     @SuppressWarnings({"RedundantMethodOverride", "RedundantSuppression"})
@@ -209,7 +219,7 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
 
     @NotNull
     private List<TripodLeg> resetActiveLegs() {
-        int desiredSize = Math.ceilDiv(this.legs.size(), 2) - 1;
+        int desiredSize = Math.max(1, Math.ceilDiv(this.legs.size(), 2) - 1);
         if (this.activeLegs.size() == desiredSize) {
             return this.activeLegs;
         }
@@ -255,7 +265,7 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
         int size = nbt.getInt("numberOfLegs");
         IntList actives = new IntArrayList();
         if (nbt.contains("activeLegs")) {
-            actives.setElements(nbt.getIntArray("activeLegs"));
+            actives.addElements(0, nbt.getIntArray("activeLegs"));
         }
         this.activeLegs.clear();
         boolean dirty = false;
@@ -373,46 +383,17 @@ public class WalkingCubeEntity extends Entity implements ControlBoarder, Pathfin
     }
 
     private void tickRotation(Vec2f rotation) {
-        this.setRotation(rotation.y, rotation.x);
-        if (this.shouldTurnRight) {
-            this.addRotation(90.0f, 0);
-            if (this.shouldAccelerateForward) {
-                this.addRotation(-45.0f, 0);
-            }
-            if (this.shouldGoBackward) {
-                this.addRotation(45.0f, 0);
-            }
-        } else if (this.shouldTurnLeft) {
-            this.addRotation(-90.0f, 0);
-            if (this.shouldAccelerateForward) {
-                this.addRotation(45.0f, 0);
-            }
-            if (this.shouldGoBackward) {
-                this.addRotation(-45.0f, 0);
-            }
-        } else if (this.shouldGoBackward) {
-            this.addRotation(180.0f, 0);
-        } else if (!this.shouldAccelerateForward) {
-            this.setRotation(this.prevYaw, this.getPitch());
-        }
-        this.setYaw(this.getYaw());
-        this.prevYaw = this.getYaw();
+        this.inputs.tickRotation(
+                rotation,
+                this::setRotation,
+                this::addRotation,
+                () -> new PitchYawPair(this.getPitch(), this.getYaw()),
+                () -> this.setYaw(this.getYaw())
+        );
     }
 
     public void setInputs(boolean pressingLeft, boolean pressingRight, boolean pressingForward, boolean pressingBack){
-        this.shouldAccelerateForward = pressingForward;
-        if (pressingForward) {
-            this.shouldGoBackward = false;
-        } else {
-            this.shouldGoBackward = pressingBack;
-        }
-        if (pressingLeft && pressingRight) {
-            this.shouldTurnLeft = false;
-            this.shouldTurnRight = false;
-        } else {
-            this.shouldTurnLeft = pressingLeft;
-            this.shouldTurnRight = pressingRight;
-        }
+        this.inputs.setInputs(pressingLeft, pressingRight, pressingForward, pressingBack);
     }
 
     @SuppressWarnings("SameParameterValue")

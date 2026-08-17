@@ -19,7 +19,7 @@ public final class FabrIKSolver {
      * @param positions The <i>mutable</i> joint positions p<sub>i</sub> for i = 1,...,n. The first position should be the root chain.
      *                  Note that the distance d<sub>i</sub> between each joint is equivalent to |p<sub>i+1</sub> - p<sub>i</sub>| for i = 1,...,n-1.
      * @param t the target position
-     * The positions parameter will have the updated positionsThe new joint positions p<sub>i</sub> for i = 1,...,n.
+     * The positions parameter will have the updated joint positions p<sub>i</sub> for i = 1,...,n.
      */
     public static void solve(List<Vec3d> positions, Vec3d t) {
         if (positions == null || positions.isEmpty()) {
