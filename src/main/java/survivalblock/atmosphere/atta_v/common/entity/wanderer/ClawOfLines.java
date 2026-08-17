@@ -1,4 +1,12 @@
 package survivalblock.atmosphere.atta_v.common.entity.wanderer;
+
+public abstract class ClawOfLines extends Appendage implements PositionContainer {
+
+    public ClawOfLines(WalkingCubeEntity controller, int segments, double segmentLength, boolean clientOnly) {
+        super(controller, segments, segmentLength, clientOnly);
+    }
+}
+
 /*
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.NbtCompound;

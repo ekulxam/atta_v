@@ -38,7 +38,7 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
     protected final AtomicBoolean renderObjects = new AtomicBoolean(false);
 
     protected static final BlockState ANVIL = Blocks.ANVIL.getDefaultState();
-    protected static final BlockState TINTED_GLASS  = Blocks.TINTED_GLASS.getDefaultState();
+    //protected static final BlockState TINTED_GLASS  = Blocks.TINTED_GLASS.getDefaultState();
 
     public WandererRenderer(EntityRendererFactory.Context context, WandererModel model) {
         super(context);
@@ -80,7 +80,7 @@ public class WandererRenderer extends EntityRenderer<WalkingCubeEntity> {
         entity.getLegPositions(tickDelta).forEach(container -> {
             renderAppendage(lerpedPos, container, matrixStack, lines, container.color(), vertexConsumerProvider, blockRenderManager, ANVIL, light, renderObjects);
         });
-        renderAppendage(lerpedPos, entity.getClaw(), matrixStack, lines, 0xFF0000FF, vertexConsumerProvider, blockRenderManager, TINTED_GLASS, light, renderObjects);
+        //renderAppendage(lerpedPos, entity.getClaw(), matrixStack, lines, 0xFF0000FF, vertexConsumerProvider, blockRenderManager, TINTED_GLASS, light, renderObjects);
         super.render(entity, yaw, tickDelta, matrixStack, vertexConsumerProvider, light);
     }
 
