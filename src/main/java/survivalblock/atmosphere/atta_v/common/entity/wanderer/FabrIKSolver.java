@@ -1,8 +1,9 @@
 package survivalblock.atmosphere.atta_v.common.entity.wanderer;
 
+import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
+import it.unimi.dsi.fastutil.doubles.DoubleList;
 import net.minecraft.util.math.Vec3d;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -26,14 +27,14 @@ public final class FabrIKSolver {
         }
 
         int size = positions.size();
-        List<Double> distances = getDistances(positions);
+        DoubleList distances = getDistances(positions);
 
         // if max chain length > root to t distance
-        if (distances.stream().mapToDouble(d -> d).sum() < positions.getFirst().distanceTo(t)) {
+        if (sum(distances) < positions.getFirst().distanceTo(t)) {
             for (int i = 0; i < size - 1; i++) {
                 Vec3d pi = positions.get(i);
                 double ri = t.distanceTo(pi);
-                double lambdai = distances.get(i) / ri; // λi
+                double lambdai = distances.getDouble(i) / ri; // λi
                 positions.set(i + 1, pi
                         .multiply((1 - lambdai))
                         .add( t.multiply(lambdai) ));
@@ -52,7 +53,7 @@ public final class FabrIKSolver {
             for (int i = size - 2; i >= 0; i--) {  // n - 1 = (size - 1) - 1
                 current = positions.get(i);
                 double ri = previous.distanceTo(current);
-                double lambdai = distances.get(i) / ri;
+                double lambdai = distances.getDouble(i) / ri;
                 positions.set(i, previous
                         .multiply((1 - lambdai))
                         .add( current.multiply(lambdai) ));
@@ -64,7 +65,7 @@ public final class FabrIKSolver {
             for (int i = 1; i < size - 1; i++) {
                 current = positions.get(i);
                 double ri = current.distanceTo(previous);
-                double lambdai = distances.get(i) / ri;
+                double lambdai = distances.getDouble(i) / ri;
                 positions.set(i, previous
                         .multiply((1 - lambdai))
                         .add( current.multiply(lambdai) ));
@@ -74,8 +75,8 @@ public final class FabrIKSolver {
         }
     }
 
-    private static List<Double> getDistances(List<Vec3d> positions) {
-        List<Double> distances = new ArrayList<>();
+    private static DoubleList getDistances(List<Vec3d> positions) {
+        DoubleList distances = new DoubleArrayList();
         Vec3d previous = positions.getFirst();
         Vec3d current;
         // [1,2,3,4,5], size = 5. position.getfirst = 1. i = 1, current = 2, i = 2, current = 3, i = 3, current = 4, i = 4, current = 5
@@ -85,5 +86,13 @@ public final class FabrIKSolver {
             previous = current;
         }
         return distances;
+    }
+
+    private static double sum(DoubleList doubles) {
+        double sum = 0;
+        for (int i = 0; i < doubles.size(); i++) {
+            sum += doubles.getDouble(i);
+        }
+        return sum;
     }
 }
